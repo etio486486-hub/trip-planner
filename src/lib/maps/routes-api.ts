@@ -1,4 +1,5 @@
 import { buildTaxiPhraseWithReading } from "@/lib/japanese-reading";
+import { findNearestTransitStop } from "@/lib/maps/places-api";
 import { decodePolyline, type LatLng } from "./polyline";
 
 type TravelMode = "DRIVE" | "TRANSIT" | "WALK";
@@ -79,6 +80,18 @@ export type TransitStepInfo = {
   duration: string | null;
 };
 
+export type TransitWalkSegment = {
+  type: "WALK";
+  label: string;
+  duration: string | null;
+};
+
+export type TransitRideSegment = TransitStepInfo & {
+  type: "TRANSIT";
+};
+
+export type TransitSegment = TransitWalkSegment | TransitRideSegment;
+
 export type TransitDetails = {
   duration: string | null;
   fareText: string | null;
@@ -88,6 +101,7 @@ export type TransitDetails = {
   lineName: string | null;
   headsign: string | null;
   steps: TransitStepInfo[];
+  segments: TransitSegment[];
   path: LatLng[];
 };
 
@@ -198,31 +212,68 @@ function extractPathFromRoute(route?: RouteData): LatLng[] {
   );
 }
 
-function extractTransitOnlyPath(route?: RouteData): LatLng[] {
-  if (!route) return [];
+function sumDurationSeconds(parts: (string | null | undefined)[]): string | null {
+  let total = 0;
+  let found = false;
+  for (const part of parts) {
+    const sec = parseDurationSeconds(part ?? undefined);
+    if (sec != null) {
+      total += sec;
+      found = true;
+    }
+  }
+  return found ? formatDurationKo(total) : null;
+}
 
-  const steps = route.legs?.flatMap((leg) => leg.steps ?? []) ?? [];
-  const transitPoints: LatLng[] = [];
+function parseRouteStepsIntoSegments(steps: RouteStep[]): TransitSegment[] {
+  const segments: TransitSegment[] = [];
+  const firstTransitIdx = steps.findIndex((s) => s.travelMode === "TRANSIT");
+  const lastTransitIdx = steps.findLastIndex((s) => s.travelMode === "TRANSIT");
 
-  for (const step of steps) {
-    if (step.travelMode !== "TRANSIT" || !step.transitDetails) continue;
+  for (let i = 0; i < steps.length; i++) {
+    const step = steps[i];
 
-    if (step.polyline?.encodedPolyline) {
-      transitPoints.push(...decodePolyline(step.polyline.encodedPolyline));
+    if (step.travelMode === "WALK") {
+      const sec = parseDurationSeconds(step.staticDuration);
+      let label = "도보 이동";
+
+      if (firstTransitIdx >= 0 && i < firstTransitIdx) {
+        const board =
+          steps[firstTransitIdx].transitDetails?.stopDetails?.departureStop
+            ?.name;
+        label = board ? `출발지 → ${board} 도보` : "출발지 → 승차역 도보";
+      } else if (lastTransitIdx >= 0 && i > lastTransitIdx) {
+        const alight =
+          steps[lastTransitIdx].transitDetails?.stopDetails?.arrivalStop?.name;
+        label = alight ? `${alight} → 도착지 도보` : "하차역 → 도착지 도보";
+      } else if (
+        firstTransitIdx >= 0 &&
+        lastTransitIdx >= 0 &&
+        i > firstTransitIdx &&
+        i < lastTransitIdx
+      ) {
+        label = "환승 도보";
+      }
+
+      segments.push({
+        type: "WALK",
+        label,
+        duration: sec != null ? formatDurationKo(sec) : null,
+      });
       continue;
     }
 
-    const dep = step.transitDetails.stopDetails?.departureStop?.location?.latLng;
-    const arr = step.transitDetails.stopDetails?.arrivalStop?.location?.latLng;
-    if (dep?.latitude != null && dep?.longitude != null) {
-      transitPoints.push({ lat: dep.latitude, lng: dep.longitude });
-    }
-    if (arr?.latitude != null && arr?.longitude != null) {
-      transitPoints.push({ lat: arr.latitude, lng: arr.longitude });
+    if (step.travelMode === "TRANSIT") {
+      const parsed = parseTransitStep(step);
+      if (parsed) segments.push({ type: "TRANSIT", ...parsed });
     }
   }
 
-  return transitPoints;
+  return segments;
+}
+
+function transitRideSegments(segments: TransitSegment[]): TransitRideSegment[] {
+  return segments.filter((s): s is TransitRideSegment => s.type === "TRANSIT");
 }
 
 function extractRouteInfo(route: RouteData | undefined): RouteInfo {
@@ -273,20 +324,10 @@ function parseTransitStep(step: RouteStep): TransitStepInfo | null {
   };
 }
 
-function extractTransitDetails(route: RouteData | undefined): TransitDetails | null {
-  if (!route) return null;
-
-  const base = extractRouteInfo(route);
-  const steps = route.legs?.flatMap((leg) => leg.steps ?? []) ?? [];
-  const transitSteps = steps
-    .map(parseTransitStep)
-    .filter((s): s is TransitStepInfo => s !== null);
-
-  if (transitSteps.length === 0 && !base.duration) return null;
-
-  const first = transitSteps[0];
-  const last = transitSteps[transitSteps.length - 1];
-
+function extractTransitFare(route: RouteData): {
+  fareYen: number | null;
+  fareText: string | null;
+} {
   const advisoryFare = route.travelAdvisory?.transitFare;
   let fareYen: number | null = null;
   let fareText: string | null = null;
@@ -307,21 +348,150 @@ function extractTransitDetails(route: RouteData | undefined): TransitDetails | n
     if (match) fareYen = Number(match[1]);
   }
 
-  const lineNames = [
-    ...new Set(transitSteps.map((s) => s.lineShort ?? s.lineName)),
-  ];
+  return { fareYen, fareText };
+}
+
+function buildTransitDetailsFromRoute(
+  route: RouteData,
+  segments: TransitSegment[],
+  path: LatLng[],
+  durationOverride?: string | null
+): TransitDetails {
+  const base = extractRouteInfo(route);
+  const rides = transitRideSegments(segments);
+  const first = rides[0];
+  const last = rides[rides.length - 1];
+  const { fareYen, fareText } = extractTransitFare(route);
+  const lineNames = [...new Set(rides.map((s) => s.lineShort ?? s.lineName))];
 
   return {
-    duration: base.duration,
+    duration: durationOverride ?? base.duration,
     fareText,
     fareYen,
     boardStop: first?.boardStop ?? null,
     alightStop: last?.alightStop ?? null,
     lineName: lineNames.join(" → ") || null,
     headsign: first?.headsign ?? null,
-    steps: transitSteps,
-    path: extractTransitOnlyPath(route),
+    steps: rides,
+    segments,
+    path,
   };
+}
+
+function extractTransitDetails(route: RouteData | undefined): TransitDetails | null {
+  if (!route) return null;
+
+  const base = extractRouteInfo(route);
+  const steps = route.legs?.flatMap((leg) => leg.steps ?? []) ?? [];
+  const segments = parseRouteStepsIntoSegments(steps);
+  const rides = transitRideSegments(segments);
+
+  if (rides.length === 0 && !base.duration) return null;
+
+  return buildTransitDetailsFromRoute(
+    route,
+    segments,
+    extractPathFromRoute(route)
+  );
+}
+
+function buildTransitRequestBody(
+  origin: LatLng,
+  destination: LatLng
+): Record<string, unknown> {
+  return {
+    ...buildBaseBody(origin, destination, "TRANSIT"),
+    departureTime: new Date().toISOString(),
+    transitPreferences: {
+      routingPreference: "LESS_WALKING",
+      allowedTravelModes: ["SUBWAY", "TRAIN", "BUS", "TRAM", "RAIL"],
+    },
+  };
+}
+
+async function buildHybridTransitFallback(
+  origin: LatLng,
+  destination: LatLng
+): Promise<TransitDetails | null> {
+  const [originStop, destStop] = await Promise.all([
+    findNearestTransitStop(origin.lat, origin.lng),
+    findNearestTransitStop(destination.lat, destination.lng),
+  ]);
+
+  if (!originStop || !destStop) return null;
+
+  const originStation = {
+    lat: originStop.latitude,
+    lng: originStop.longitude,
+  };
+  const destStation = {
+    lat: destStop.latitude,
+    lng: destStop.longitude,
+  };
+
+  const [walkToRes, transitRes, walkFromRes] = await Promise.all([
+    requestRoute(buildBaseBody(origin, originStation, "WALK"), ROUTE_MASK),
+    requestRoute(
+      buildTransitRequestBody(originStation, destStation),
+      TRANSIT_MASK
+    ),
+    requestRoute(buildBaseBody(destStation, destination, "WALK"), ROUTE_MASK),
+  ]);
+
+  const walkToRoute = walkToRes?.routes?.[0];
+  const transitRoute = transitRes?.routes?.[0];
+  const walkFromRoute = walkFromRes?.routes?.[0];
+
+  const walkTo = extractRouteInfo(walkToRoute);
+  const walkFrom = extractRouteInfo(walkFromRoute);
+  const coreTransit = extractTransitDetails(transitRoute);
+  const coreRides = coreTransit ? transitRideSegments(coreTransit.segments) : [];
+
+  if (!coreTransit || coreRides.length === 0) return null;
+
+  const segments: TransitSegment[] = [
+    {
+      type: "WALK",
+      label: `출발지 → ${originStop.name} 도보`,
+      duration: walkTo.duration,
+    },
+    ...coreTransit.segments,
+    {
+      type: "WALK",
+      label: `${destStop.name} → 도착지 도보`,
+      duration: walkFrom.duration,
+    },
+  ];
+
+  const path = [...walkTo.path, ...coreTransit.path, ...walkFrom.path];
+  const totalDuration = sumDurationSeconds([
+    walkToRoute?.staticDuration ?? walkToRoute?.duration,
+    transitRoute?.staticDuration ?? transitRoute?.duration,
+    walkFromRoute?.staticDuration ?? walkFromRoute?.duration,
+  ]);
+
+  return buildTransitDetailsFromRoute(
+    transitRoute!,
+    segments,
+    path,
+    totalDuration
+  );
+}
+
+async function resolveTransitDetails(
+  origin: LatLng,
+  destination: LatLng,
+  transitRoute: RouteData | undefined
+): Promise<TransitDetails | null> {
+  const direct = extractTransitDetails(transitRoute);
+  if (direct && transitRideSegments(direct.segments).length > 0) {
+    return direct;
+  }
+
+  const hybrid = await buildHybridTransitFallback(origin, destination);
+  if (hybrid) return hybrid;
+
+  return direct;
 }
 
 async function requestRoute(
@@ -395,7 +565,9 @@ const TRANSIT_MASK = [
   ROUTE_MASK,
   "routes.legs.steps.transitDetails",
   "routes.legs.steps.transitDetails.stopDetails",
+  "routes.legs.steps.transitDetails.stopDetails.departureStop.name",
   "routes.legs.steps.transitDetails.stopDetails.departureStop.location",
+  "routes.legs.steps.transitDetails.stopDetails.arrivalStop.name",
   "routes.legs.steps.transitDetails.stopDetails.arrivalStop.location",
   "routes.legs.steps.transitDetails.transitLine",
   "routes.legs.steps.transitDetails.transitLine.vehicle",
@@ -417,6 +589,10 @@ export async function computeRoute(
   if (travelMode === "DRIVE") body.routingPreference = "TRAFFIC_UNAWARE";
   if (travelMode === "TRANSIT") {
     body.departureTime = new Date().toISOString();
+    body.transitPreferences = {
+      routingPreference: "LESS_WALKING",
+      allowedTravelModes: ["SUBWAY", "TRAIN", "BUS", "TRAM", "RAIL"],
+    };
   }
 
   const mask = travelMode === "TRANSIT" ? TRANSIT_MASK : ROUTE_MASK;
@@ -442,13 +618,7 @@ export async function computeRouteLegDetails(
       ROUTE_MASK
     ),
     requestRoute(buildBaseBody(origin, destination, "WALK"), ROUTE_MASK),
-    requestRoute(
-      {
-        ...buildBaseBody(origin, destination, "TRANSIT"),
-        departureTime: new Date().toISOString(),
-      },
-      TRANSIT_MASK
-    ),
+    requestRoute(buildTransitRequestBody(origin, destination), TRANSIT_MASK),
   ]);
 
   const driveRoute = driveRes?.routes?.[0];
@@ -457,7 +627,11 @@ export async function computeRouteLegDetails(
 
   const drive = extractRouteInfo(driveRoute);
   const walk = extractRouteInfo(walkRoute);
-  const transit = extractTransitDetails(transitRoute);
+  const transit = await resolveTransitDetails(
+    origin,
+    destination,
+    transitRoute
+  );
 
   const distanceMeters =
     drive.distanceMeters ??

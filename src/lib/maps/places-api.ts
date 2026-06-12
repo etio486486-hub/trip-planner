@@ -181,6 +181,88 @@ type PlaceDetailsResponse = PlacesResponse & {
   currentOpeningHours?: { openNow?: boolean };
 };
 
+export type TransitStopInfo = {
+  name: string;
+  latitude: number;
+  longitude: number;
+};
+
+function haversineMeters(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number
+): number {
+  const R = 6371000;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+type NearbyTransitPlace = {
+  displayName?: { text?: string };
+  location?: { latitude?: number; longitude?: number };
+};
+
+/** 출발/도착지 근처 대중교통 역 검색 */
+export async function findNearestTransitStop(
+  latitude: number,
+  longitude: number,
+  radiusMeters = 2000
+): Promise<TransitStopInfo | null> {
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
+  if (!apiKey.startsWith("AIza")) return null;
+
+  const response = await fetch(
+    "https://places.googleapis.com/v1/places:searchNearby",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": apiKey,
+        "X-Goog-FieldMask": "places.displayName,places.location",
+      },
+      body: JSON.stringify({
+        includedTypes: ["subway_station", "train_station", "transit_station"],
+        maxResultCount: 10,
+        rankPreference: "DISTANCE",
+        locationRestriction: {
+          circle: {
+            center: { latitude, longitude },
+            radius: radiusMeters,
+          },
+        },
+      }),
+    }
+  );
+
+  if (!response.ok) return null;
+
+  const data = (await response.json()) as { places?: NearbyTransitPlace[] };
+  const ranked = (data.places ?? [])
+    .map((p) => ({
+      name: p.displayName?.text ?? "역",
+      latitude: p.location?.latitude,
+      longitude: p.location?.longitude,
+    }))
+    .filter(
+      (p): p is TransitStopInfo =>
+        p.latitude != null && p.longitude != null
+    )
+    .sort(
+      (a, b) =>
+        haversineMeters(latitude, longitude, a.latitude, a.longitude) -
+        haversineMeters(latitude, longitude, b.latitude, b.longitude)
+    );
+
+  return ranked[0] ?? null;
+}
+
 export async function fetchNearbyRestaurants(
   latitude: number,
   longitude: number,

@@ -183,7 +183,7 @@ export function RouteSegmentInfo({
             <div className="rounded-md bg-white px-2.5 py-2 shadow-sm">
               <div className="mb-1 flex items-center gap-1 text-[11px] font-semibold text-zinc-700">
                 <Train className="h-3 w-3" />
-                지하철·전철 (역↔역)
+                지하철 + 도보
               </div>
               {transit ? (
                 <>
@@ -192,35 +192,48 @@ export function RouteSegmentInfo({
                     label="요금:"
                     value={transit.fareText ?? formatYen(transit.fareYen)}
                   />
-                  {transit.steps.length > 0 ? (
+                  {transit.segments.length > 0 ? (
                     <div className="mt-2 space-y-2">
-                      {transit.steps.map((step, i) => (
-                        <div
-                          key={i}
-                          className="rounded-md bg-blue-50 px-2 py-1.5 ring-1 ring-blue-100"
-                        >
-                          <p className="text-[11px] font-semibold text-blue-900">
-                            {i + 1}구간 · {step.vehicleType ?? "대중교통"}{" "}
-                            {step.lineShort ?? step.lineName}
-                          </p>
-                          <InfoRow
-                            label="승차:"
-                            value={step.boardStop}
-                            reading={toKoreanReading(step.boardStop ?? "")}
-                          />
-                          <InfoRow
-                            label="하차:"
-                            value={step.alightStop}
-                            reading={toKoreanReading(step.alightStop ?? "")}
-                          />
-                          <InfoRow
-                            label="방향:"
-                            value={step.headsign}
-                            reading={toKoreanReading(step.headsign ?? "")}
-                          />
-                          <InfoRow label="시간:" value={step.duration} />
-                        </div>
-                      ))}
+                      {transit.segments.map((segment, i) =>
+                        segment.type === "WALK" ? (
+                          <div
+                            key={i}
+                            className="rounded-md bg-emerald-50 px-2 py-1.5 ring-1 ring-emerald-100"
+                          >
+                            <p className="flex items-center gap-1 text-[11px] font-semibold text-emerald-900">
+                              <Footprints className="h-3 w-3" />
+                              {i + 1}구간 · {segment.label}
+                            </p>
+                            <InfoRow label="시간:" value={segment.duration} />
+                          </div>
+                        ) : (
+                          <div
+                            key={i}
+                            className="rounded-md bg-blue-50 px-2 py-1.5 ring-1 ring-blue-100"
+                          >
+                            <p className="text-[11px] font-semibold text-blue-900">
+                              {i + 1}구간 · {segment.vehicleType ?? "대중교통"}{" "}
+                              {segment.lineShort ?? segment.lineName}
+                            </p>
+                            <InfoRow
+                              label="승차:"
+                              value={segment.boardStop}
+                              reading={toKoreanReading(segment.boardStop ?? "")}
+                            />
+                            <InfoRow
+                              label="하차:"
+                              value={segment.alightStop}
+                              reading={toKoreanReading(segment.alightStop ?? "")}
+                            />
+                            <InfoRow
+                              label="방향:"
+                              value={segment.headsign}
+                              reading={toKoreanReading(segment.headsign ?? "")}
+                            />
+                            <InfoRow label="시간:" value={segment.duration} />
+                          </div>
+                        )
+                      )}
                     </div>
                   ) : (
                     <>
