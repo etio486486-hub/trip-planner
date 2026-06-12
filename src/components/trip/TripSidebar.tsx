@@ -5,6 +5,7 @@ import { ChecklistPanel } from "./ChecklistPanel";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { DayTabs } from "./DayTabs";
 import { ExpensePanel } from "./ExpensePanel";
+import { TranslatorPanel } from "./TranslatorPanel";
 import { TripHeader } from "./TripHeader";
 import { InviteMembers } from "./InviteMembers";
 import { MemberList } from "./MemberList";
@@ -294,6 +295,7 @@ export function TripSidebar({
             isMobile
           />
         )}
+        {sidebarTab === "translator" && <TranslatorPanel isMobile />}
       </aside>
     );
   }
@@ -360,6 +362,7 @@ export function TripSidebar({
           tripEndDate={trip?.end_date}
         />
       )}
+      {sidebarTab === "translator" && <TranslatorPanel />}
     </aside>
   );
 }

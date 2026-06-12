@@ -224,6 +224,9 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
     focusedPlaceId,
     routeSegments: visibleRouteSegments,
     routesLoading,
+    onPlaceClick: (placeId: string) => {
+      setFocusedPlaceId((prev) => (prev === placeId ? null : placeId));
+    },
   };
 
   return (

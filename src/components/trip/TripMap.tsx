@@ -3,6 +3,7 @@
 import { useEffect, useMemo } from "react";
 import { AdvancedMarker, Map, useMap } from "@vis.gl/react-google-maps";
 import type { MapRouteSegment } from "@/hooks/useTripRouteLegs";
+import { groupPlacesForMarkers } from "@/lib/map-markers";
 import { isMapsConfigured } from "./MapsProvider";
 import { MapsSetupGuide } from "./MapsSetupGuide";
 import type { Place } from "@/types/database";
@@ -15,6 +16,7 @@ type TripMapProps = {
   focusedPlaceId: string | null;
   routeSegments: MapRouteSegment[];
   routesLoading?: boolean;
+  onPlaceClick?: (placeId: string) => void;
 };
 
 function SegmentPolylines({ segments }: { segments: MapRouteSegment[] }) {
@@ -49,27 +51,56 @@ function SegmentPolylines({ segments }: { segments: MapRouteSegment[] }) {
 function PlaceMarkers({
   places,
   focusedPlaceId,
+  onPlaceClick,
 }: {
   places: Place[];
   focusedPlaceId: string | null;
+  onPlaceClick?: (placeId: string) => void;
 }) {
+  const groups = useMemo(() => groupPlacesForMarkers(places), [places]);
+
   return (
     <>
-      {places.map((place, index) => {
-        const isFocused = place.id === focusedPlaceId;
+      {groups.map((group) => {
+        const isFocused = group.items.some(
+          (item) => item.place.id === focusedPlaceId
+        );
+        const title = group.items
+          .map((item) => `${item.number}. ${item.place.name}`)
+          .join(" · ");
+        const markerKey = group.items.map((item) => item.place.id).join("-");
+
         return (
           <AdvancedMarker
-            key={place.id}
-            position={{ lat: place.latitude, lng: place.longitude }}
-            title={place.name}
-            zIndex={isFocused ? 1000 : index}
+            key={markerKey}
+            position={{ lat: group.lat, lng: group.lng }}
+            title={title}
+            zIndex={isFocused ? 1000 : group.items[0].number}
+            onClick={() => {
+              const target =
+                group.items.find((item) => item.place.id === focusedPlaceId)
+                  ?.place.id ?? group.items[0].place.id;
+              onPlaceClick?.(target);
+            }}
           >
             <div
-              className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white shadow-md ${
-                isFocused ? "bg-blue-700 ring-2 ring-white" : "bg-red-600"
-              }`}
+              className={`flex items-center gap-0.5 ${onPlaceClick ? "cursor-pointer" : ""}`}
             >
-              {index + 1}
+              {group.items.map((item) => (
+                <div
+                  key={item.place.id}
+                  className={`flex h-7 min-w-[1.75rem] items-center justify-center rounded-full px-1 text-xs font-bold text-white shadow-md ${
+                    item.place.id === focusedPlaceId ||
+                    (isFocused && group.items.length === 1)
+                      ? "bg-blue-700 ring-2 ring-white"
+                      : isFocused
+                        ? "bg-blue-600 ring-1 ring-white/80"
+                        : "bg-red-600"
+                  }`}
+                >
+                  {item.number}
+                </div>
+              ))}
             </div>
           </AdvancedMarker>
         );
@@ -119,6 +150,7 @@ function MapContent({
   focusedPlaceId,
   routeSegments,
   routesLoading,
+  onPlaceClick,
 }: TripMapProps) {
   const center = useMemo(() => {
     if (places.length === 0) {
@@ -144,7 +176,11 @@ function MapContent({
     >
       <MapCameraController places={places} focusedPlaceId={focusedPlaceId} />
       <SegmentPolylines segments={routeSegments} />
-      <PlaceMarkers places={places} focusedPlaceId={focusedPlaceId} />
+      <PlaceMarkers
+        places={places}
+        focusedPlaceId={focusedPlaceId}
+        onPlaceClick={onPlaceClick}
+      />
 
       {routesLoading && (
         <div className="absolute left-3 top-3 z-10">
@@ -162,6 +198,7 @@ export function TripMap({
   focusedPlaceId,
   routeSegments,
   routesLoading,
+  onPlaceClick,
 }: TripMapProps) {
   if (!isMapsConfigured()) {
     return (
@@ -180,6 +217,7 @@ export function TripMap({
         focusedPlaceId={focusedPlaceId}
         routeSegments={routeSegments}
         routesLoading={routesLoading}
+        onPlaceClick={onPlaceClick}
       />
     </div>
   );
