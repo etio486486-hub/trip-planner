@@ -11,8 +11,14 @@ export function InviteMembers({ tripId }: InviteMembersProps) {
   const [copied, setCopied] = useState(false);
   const [showLink, setShowLink] = useState(false);
 
-  const inviteUrl =
-    typeof window !== "undefined"
+  const productionUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
+  const isPreviewUrl =
+    typeof window !== "undefined" &&
+    /-git-|-[a-z0-9]+-.*-projects\.vercel\.app$/i.test(window.location.hostname);
+
+  const inviteUrl = productionUrl
+    ? `${productionUrl}/trips/${tripId}`
+    : typeof window !== "undefined"
       ? `${window.location.origin}/trips/${tripId}`
       : `/trips/${tripId}`;
 
@@ -53,6 +59,14 @@ export function InviteMembers({ tripId }: InviteMembersProps) {
         아래 링크를 카카오톡·문자 등으로 공유하면 친구가 같은 여행에
         참여합니다. 링크를 연 사람은 자동으로 멤버로 추가됩니다.
       </p>
+
+      {isPreviewUrl && !productionUrl && (
+        <p className="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs text-amber-800">
+          지금 Preview 주소입니다. 친구에게는{" "}
+          <strong>trip-planner-taupe-eta.vercel.app</strong> 로 시작하는
+          Production 링크를 보내세요.
+        </p>
+      )}
 
       {showLink && (
         <div className="mb-2 flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2">

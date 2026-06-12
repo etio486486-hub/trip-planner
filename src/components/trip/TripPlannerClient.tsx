@@ -5,6 +5,7 @@ import { AlertCircle } from "lucide-react";
 import { useTripRealtime } from "@/hooks/useTripRealtime";
 import { MapsProvider } from "./MapsProvider";
 import { TripMap } from "./TripMap";
+import { MemberNameModal } from "./MemberNameModal";
 import { TripSidebar } from "./TripSidebar";
 
 type TripPlannerClientProps = {
@@ -29,6 +30,11 @@ export function TripPlannerClient({ tripId }: TripPlannerClientProps) {
     addDay,
     removeDay,
     updateTrip,
+    needsNameSetup,
+    joinTripAsMember,
+    updateDisplayName,
+    kickMember,
+    currentUserId,
   } = useTripRealtime({ tripId, selectedDayNumber });
 
   const handleDeletePlace = async (id: string) => {
@@ -66,8 +72,21 @@ export function TripPlannerClient({ tripId }: TripPlannerClientProps) {
     }
   };
 
+  const handleKickMember = async (memberId: string) => {
+    try {
+      await kickMember(memberId);
+    } catch (err) {
+      console.error(err);
+      alert(err instanceof Error ? err.message : "강퇴에 실패했습니다.");
+    }
+  };
+
   return (
     <MapsProvider>
+      <MemberNameModal
+        open={needsNameSetup}
+        onSave={joinTripAsMember}
+      />
       <div className="flex h-screen w-full flex-col">
         {error && (
           <div className="flex items-center gap-2 bg-red-50 px-4 py-2 text-sm text-red-700">
@@ -97,6 +116,10 @@ export function TripPlannerClient({ tripId }: TripPlannerClientProps) {
             onReorderPlaces={handleReorderPlaces}
             selectedPlaceId={focusedPlaceId}
             onSelectPlace={setFocusedPlaceId}
+            currentUserId={currentUserId}
+            creatorId={trip?.creator_id ?? null}
+            onUpdateDisplayName={updateDisplayName}
+            onKickMember={handleKickMember}
           />
           <main className="relative flex-1">
             <TripMap places={places} focusedPlaceId={focusedPlaceId} />

@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase/client";
-import { getUserDisplayName, getUserId } from "@/lib/user";
+import {
+  getUserDisplayName,
+  getUserId,
+  hasCustomDisplayName,
+  setUserDisplayName,
+} from "@/lib/user";
 import type {
   DailyPlan,
   Place,
@@ -42,6 +47,11 @@ type UseTripRealtimeReturn = {
     start_date: string;
     end_date: string;
   }) => Promise<void>;
+  needsNameSetup: boolean;
+  joinTripAsMember: (name: string) => Promise<void>;
+  updateDisplayName: (name: string) => Promise<void>;
+  kickMember: (memberId: string) => Promise<void>;
+  currentUserId: string;
 };
 
 export function useTripRealtime({
@@ -55,9 +65,13 @@ export function useTripRealtime({
   const [onlineUsers, setOnlineUsers] = useState<PresenceUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [needsNameSetup, setNeedsNameSetup] = useState(false);
 
   const dailyPlanIdsRef = useRef<Set<string>>(new Set());
   const selectedDailyPlanIdRef = useRef<string | null>(null);
+  const presenceChannelRef = useRef<ReturnType<
+    ReturnType<typeof getSupabase>["channel"]
+  > | null>(null);
 
   const selectedDailyPlan =
     dailyPlans.find((p) => p.day_number === selectedDayNumber) ?? null;
@@ -104,18 +118,23 @@ export function useTripRealtime({
       setTrip(tripData);
 
       const userId = getUserId();
-      const displayName = getUserDisplayName();
+      const nameReady = hasCustomDisplayName();
 
-      await getSupabase()
-        .from("trip_members")
-        .upsert(
-        {
-          trip_id: tripId,
-          user_id: userId,
-          display_name: displayName,
-        },
-        { onConflict: "trip_id,user_id" }
-      );
+      setNeedsNameSetup(!nameReady);
+
+      if (nameReady) {
+        const displayName = getUserDisplayName();
+        await getSupabase()
+          .from("trip_members")
+          .upsert(
+            {
+              trip_id: tripId,
+              user_id: userId,
+              display_name: displayName,
+            },
+            { onConflict: "trip_id,user_id" }
+          );
+      }
 
       const { data: membersData, error: membersError } = await getSupabase()
         .from("trip_members")
@@ -240,8 +259,19 @@ export function useTripRealtime({
               if (prev.some((m) => m.id === member.id)) return prev;
               return [...prev, member];
             });
+          } else if (payload.eventType === "UPDATE") {
+            const member = payload.new as TripMember;
+            if (member.trip_id !== tripId) return;
+            setMembers((prev) =>
+              prev.map((m) => (m.id === member.id ? member : m))
+            );
           } else if (payload.eventType === "DELETE") {
             const member = payload.old as TripMember;
+            if (member.trip_id !== tripId) return;
+            if (member.user_id === getUserId()) {
+              window.location.href = "/";
+              return;
+            }
             setMembers((prev) => prev.filter((m) => m.id !== member.id));
           }
         }
@@ -258,11 +288,12 @@ export function useTripRealtime({
     if (!isSupabaseConfigured()) return;
 
     const userId = getUserId();
-    const displayName = getUserDisplayName();
 
     const channel = getSupabase().channel(`presence:trip:${tripId}`, {
       config: { presence: { key: userId } },
     });
+
+    presenceChannelRef.current = channel;
 
     channel
       .on("presence", { event: "sync" }, () => {
@@ -274,19 +305,103 @@ export function useTripRealtime({
         setOnlineUsers(users);
       })
       .subscribe(async (status) => {
-        if (status === "SUBSCRIBED") {
+        if (status === "SUBSCRIBED" && hasCustomDisplayName()) {
           await channel.track({
             user_id: userId,
-            display_name: displayName,
+            display_name: getUserDisplayName(),
             online_at: new Date().toISOString(),
           });
         }
       });
 
     return () => {
+      presenceChannelRef.current = null;
       getSupabase().removeChannel(channel);
     };
   }, [tripId]);
+
+  const trackPresence = useCallback(async (displayName: string) => {
+    const channel = presenceChannelRef.current;
+    if (!channel) return;
+    await channel.track({
+      user_id: getUserId(),
+      display_name: displayName,
+      online_at: new Date().toISOString(),
+    });
+  }, []);
+
+  const upsertMemberName = useCallback(
+    async (name: string) => {
+      const userId = getUserId();
+      setUserDisplayName(name);
+
+      const { data, error: upsertError } = await getSupabase()
+        .from("trip_members")
+        .upsert(
+          {
+            trip_id: tripId,
+            user_id: userId,
+            display_name: name,
+          },
+          { onConflict: "trip_id,user_id" }
+        )
+        .select()
+        .single();
+
+      if (upsertError) throw upsertError;
+
+      setMembers((prev) => {
+        const exists = prev.some((m) => m.user_id === userId);
+        if (exists) {
+          return prev.map((m) =>
+            m.user_id === userId ? { ...m, display_name: name } : m
+          );
+        }
+        return data ? [...prev, data] : prev;
+      });
+
+      setNeedsNameSetup(false);
+      await trackPresence(name);
+    },
+    [tripId, trackPresence]
+  );
+
+  const joinTripAsMember = useCallback(
+    async (name: string) => {
+      await upsertMemberName(name);
+    },
+    [upsertMemberName]
+  );
+
+  const updateDisplayName = useCallback(
+    async (name: string) => {
+      await upsertMemberName(name);
+    },
+    [upsertMemberName]
+  );
+
+  const kickMember = useCallback(
+    async (memberId: string) => {
+      if (!trip || getUserId() !== trip.creator_id) {
+        throw new Error("강퇴 권한이 없습니다.");
+      }
+
+      const target = members.find((m) => m.id === memberId);
+      if (!target || target.user_id === trip.creator_id) {
+        throw new Error("강퇴할 수 없는 멤버입니다.");
+      }
+
+      const { error: deleteError } = await getSupabase()
+        .from("trip_members")
+        .delete()
+        .eq("id", memberId);
+
+      if (deleteError) throw deleteError;
+
+      setMembers((prev) => prev.filter((m) => m.id !== memberId));
+    },
+    [trip, members]
+  );
 
   const addPlace = useCallback(
     async (input: PlaceInput) => {
@@ -447,5 +562,10 @@ export function useTripRealtime({
     addDay,
     removeDay,
     updateTrip,
+    needsNameSetup,
+    joinTripAsMember,
+    updateDisplayName,
+    kickMember,
+    currentUserId: getUserId(),
   };
 }

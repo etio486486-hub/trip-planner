@@ -32,6 +32,10 @@ type TripSidebarProps = {
   onReorderPlaces: (ids: string[]) => void;
   selectedPlaceId: string | null;
   onSelectPlace: (placeId: string) => void;
+  currentUserId: string;
+  creatorId: string | null;
+  onUpdateDisplayName: (name: string) => Promise<void>;
+  onKickMember: (memberId: string) => Promise<void>;
 };
 
 export function TripSidebar({
@@ -52,13 +56,24 @@ export function TripSidebar({
   onReorderPlaces,
   selectedPlaceId,
   onSelectPlace,
+  currentUserId,
+  creatorId,
+  onUpdateDisplayName,
+  onKickMember,
 }: TripSidebarProps) {
   return (
     <aside className="flex h-full w-[380px] shrink-0 flex-col border-r border-zinc-200 bg-white">
       <TripHeader trip={trip} onUpdate={onUpdateTrip} />
 
       <InviteMembers tripId={tripId} />
-      <MemberList members={members} onlineUsers={onlineUsers} />
+      <MemberList
+        members={members}
+        onlineUsers={onlineUsers}
+        currentUserId={currentUserId}
+        creatorId={creatorId}
+        onUpdateName={onUpdateDisplayName}
+        onKickMember={onKickMember}
+      />
 
       <DayTabs
         dailyPlans={dailyPlans}
