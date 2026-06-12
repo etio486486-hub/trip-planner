@@ -1,16 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { KeyRound, Link2, Loader2, Map, Plus } from "lucide-react";
+import { ChevronRight, KeyRound, Link2, Loader2, Map, Plus } from "lucide-react";
 import {
   getSupabase,
   getSupabaseSetupMessage,
   isSupabaseConfigured,
 } from "@/lib/supabase/client";
 import { generateInviteCode, normalizeInviteCode, parseTripJoinInput } from "@/lib/invite-code";
-import { buildTripJoinUrl, grantTripAccess } from "@/lib/trip-access";
+import {
+  buildTripPath,
+  getJoinedTrips,
+  grantTripAccess,
+  removeJoinedTrip,
+  type JoinedTripRecord,
+} from "@/lib/trip-access";
 import { getUserId, syncDeviceIdentity } from "@/lib/user";
+
+type JoinedTripView = JoinedTripRecord & {
+  title: string;
+};
 
 function formatSupabaseError(message: string): string {
   if (message.includes("Could not find the table")) {
@@ -25,14 +35,78 @@ function formatSupabaseError(message: string): string {
   return `오류: ${message}`;
 }
 
+async function loadValidJoinedTrips(): Promise<JoinedTripView[]> {
+  const joined = getJoinedTrips();
+  if (joined.length === 0) return [];
+
+  const ids = joined.map((trip) => trip.tripId);
+  const { data, error } = await getSupabase()
+    .from("trips")
+    .select("id, title, invite_code")
+    .in("id", ids);
+
+  if (error || !data) return [];
+
+  const valid: JoinedTripView[] = [];
+  for (const record of joined) {
+    const trip = data.find((row) => row.id === record.tripId);
+    if (!trip?.invite_code) {
+      removeJoinedTrip(record.tripId);
+      continue;
+    }
+    if (normalizeInviteCode(trip.invite_code) !== normalizeInviteCode(record.code)) {
+      removeJoinedTrip(record.tripId);
+      continue;
+    }
+    valid.push({
+      ...record,
+      title: trip.title,
+    });
+  }
+  return valid;
+}
+
 export default function Home() {
   const [creating, setCreating] = useState(false);
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [joinCode, setJoinCode] = useState("");
   const [joinLink, setJoinLink] = useState("");
+  const [joinedTrips, setJoinedTrips] = useState<JoinedTripView[]>([]);
+  const [checkingJoined, setCheckingJoined] = useState(true);
 
   const supabaseReady = isSupabaseConfigured();
+
+  useEffect(() => {
+    if (!supabaseReady) {
+      setCheckingJoined(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      const valid = await loadValidJoinedTrips();
+      if (cancelled) return;
+
+      if (valid.length === 1) {
+        window.location.replace(buildTripPath(valid[0].tripId));
+        return;
+      }
+
+      setJoinedTrips(valid);
+      setCheckingJoined(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [supabaseReady]);
+
+  const enterTrip = (trip: JoinedTripView) => {
+    grantTripAccess(trip.tripId, trip.code);
+    window.location.href = buildTripPath(trip.tripId);
+  };
 
   const createTrip = async () => {
     if (!supabaseReady) return;
@@ -67,7 +141,7 @@ export default function Home() {
 
     if (data) {
       grantTripAccess(data.id, inviteCode);
-      window.location.href = `/trips/${data.id}?code=${encodeURIComponent(inviteCode)}`;
+      window.location.href = buildTripPath(data.id);
     }
   };
 
@@ -100,7 +174,7 @@ export default function Home() {
     }
 
     grantTripAccess(data.id, data.invite_code ?? code);
-    window.location.href = `/trips/${data.id}?code=${encodeURIComponent(data.invite_code ?? code)}`;
+    window.location.href = buildTripPath(data.id);
   };
 
   const joinWithLink = async () => {
@@ -139,7 +213,7 @@ export default function Home() {
       }
 
       grantTripAccess(data.id, data.invite_code!);
-      window.location.href = buildTripJoinUrl(data.id, data.invite_code!);
+      window.location.href = buildTripPath(data.id);
       return;
     }
 
@@ -158,9 +232,20 @@ export default function Home() {
       }
 
       grantTripAccess(data.id, data.invite_code!);
-      window.location.href = buildTripJoinUrl(data.id, data.invite_code!);
+      window.location.href = buildTripPath(data.id);
     }
   };
+
+  if (checkingJoined && supabaseReady) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="flex items-center gap-2 text-sm text-zinc-600">
+          <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+          참여 중인 여행 확인 중...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -171,7 +256,9 @@ export default function Home() {
           </div>
           <h1 className="text-3xl font-bold text-zinc-900">여행 플래너</h1>
           <p className="mt-2 text-zinc-600">
-            초대 링크·참여 코드로만 여행에 참여할 수 있습니다
+            {joinedTrips.length > 0
+              ? "이전에 참여한 여행은 바로 입장할 수 있습니다"
+              : "초대 링크·참여 코드로 여행에 참여할 수 있습니다"}
           </p>
         </div>
 
@@ -192,6 +279,33 @@ export default function Home() {
               </div>
             )}
 
+            {joinedTrips.length > 0 && (
+              <div className="mb-6 rounded-xl border border-blue-200 bg-white p-5 shadow-sm">
+                <h2 className="mb-3 text-sm font-semibold text-zinc-800">
+                  참여 중인 여행
+                </h2>
+                <ul className="space-y-2">
+                  {joinedTrips.map((trip) => (
+                    <li key={trip.tripId}>
+                      <button
+                        type="button"
+                        onClick={() => enterTrip(trip)}
+                        className="flex w-full items-center justify-between rounded-lg border border-zinc-200 px-4 py-3 text-left transition-colors hover:border-blue-300 hover:bg-blue-50"
+                      >
+                        <span className="font-medium text-zinc-900">
+                          {trip.title}
+                        </span>
+                        <span className="flex items-center gap-1 text-sm text-blue-600">
+                          바로 입장
+                          <ChevronRight className="h-4 w-4" />
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             <button
               type="button"
               onClick={createTrip}
@@ -209,7 +323,7 @@ export default function Home() {
             <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
               <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-zinc-800">
                 <KeyRound className="h-4 w-4 text-blue-600" />
-                여행 참여하기
+                다른 여행 참여하기
               </h2>
 
               <div className="space-y-4">

@@ -7,6 +7,7 @@ import { normalizeInviteCode } from "@/lib/invite-code";
 import {
   grantTripAccess,
   hasTripAccess,
+  touchJoinedTrip,
 } from "@/lib/trip-access";
 import { getUserId } from "@/lib/user";
 
@@ -57,7 +58,9 @@ export function TripJoinGate({ tripId, children }: TripJoinGateProps) {
       hasTripAccess(tripId, code, data.creator_id, userId) ||
       (urlCode && code && urlCode === normalizeInviteCode(code))
     ) {
-      if (urlCode && code) grantTripAccess(tripId, code);
+      if (code) grantTripAccess(tripId, code);
+      else if (urlCode) grantTripAccess(tripId, urlCode);
+      touchJoinedTrip(tripId);
       setAllowed(true);
     }
 
@@ -96,6 +99,7 @@ export function TripJoinGate({ tripId, children }: TripJoinGateProps) {
       }
 
       grantTripAccess(tripId, data.invite_code);
+      touchJoinedTrip(tripId);
       setAllowed(true);
     } finally {
       setSubmitting(false);
