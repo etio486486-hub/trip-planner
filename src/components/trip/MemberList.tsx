@@ -80,10 +80,9 @@ export function MemberList({
                     title={isOnline ? "온라인" : "오프라인"}
                   />
                   {isTripCreator && (
-                    <Crown
-                      className="h-3 w-3 shrink-0 text-amber-500"
-                      title="방장"
-                    />
+                    <span title="방장">
+                      <Crown className="h-3 w-3 shrink-0 text-amber-500" />
+                    </span>
                   )}
                   <span className="max-w-[80px] truncate">
                     {member.display_name ?? `유저 ${member.user_id.slice(0, 6)}`}
