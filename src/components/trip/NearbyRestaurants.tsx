@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChevronRight, Loader2, Star, Utensils } from "lucide-react";
 import { useNearbyRestaurants } from "@/hooks/useNearbyRestaurants";
+import type { NearbyRestaurant } from "@/lib/maps/places-api";
 import type { Place } from "@/types/database";
 import { RestaurantDetailModal } from "./RestaurantDetailModal";
 
@@ -16,7 +17,8 @@ export function NearbyRestaurants({ place, placeIndex }: NearbyRestaurantsProps)
     place.latitude,
     place.longitude
   );
-  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
+  const [selectedRestaurant, setSelectedRestaurant] =
+    useState<NearbyRestaurant | null>(null);
 
   return (
     <>
@@ -41,7 +43,7 @@ export function NearbyRestaurants({ place, placeIndex }: NearbyRestaurantsProps)
               <li key={r.placeId}>
                 <button
                   type="button"
-                  onClick={() => setSelectedPlaceId(r.placeId)}
+                  onClick={() => setSelectedRestaurant(r)}
                   className="flex w-full items-center gap-2 rounded-md bg-white px-2 py-1.5 text-left text-[11px] shadow-sm transition-colors hover:bg-orange-50/80"
                 >
                   <div className="min-w-0 flex-1">
@@ -81,8 +83,8 @@ export function NearbyRestaurants({ place, placeIndex }: NearbyRestaurantsProps)
       </div>
 
       <RestaurantDetailModal
-        placeId={selectedPlaceId}
-        onClose={() => setSelectedPlaceId(null)}
+        restaurant={selectedRestaurant}
+        onClose={() => setSelectedRestaurant(null)}
       />
     </>
   );

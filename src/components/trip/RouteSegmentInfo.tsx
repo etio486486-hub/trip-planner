@@ -21,6 +21,8 @@ type RouteSegmentInfoProps = {
   leg: SegmentLegState;
   fromIndex: number;
   toIndex: number;
+  segmentMode: RouteViewMode;
+  onSegmentModeChange: (mode: RouteViewMode) => void;
 };
 
 function InfoRow({
@@ -98,9 +100,9 @@ export function RouteSegmentInfo({
   leg,
   fromIndex,
   toIndex,
+  segmentMode,
+  onSegmentModeChange,
 }: RouteSegmentInfoProps) {
-  const [segmentMode, setSegmentMode] = useState<RouteViewMode>("DRIVE");
-
   const { distance, taxi, transit, walking, loading, error } = leg;
   const segmentColor = getSegmentColor(fromIndex);
 
@@ -121,7 +123,7 @@ export function RouteSegmentInfo({
             <button
               key={m}
               type="button"
-              onClick={() => setSegmentMode(m)}
+              onClick={() => onSegmentModeChange(m)}
               className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
                 segmentMode === m
                   ? "bg-blue-600 text-white"

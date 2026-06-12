@@ -3,10 +3,8 @@
 import { useEffect, useMemo } from "react";
 import { AdvancedMarker, Map, useMap } from "@vis.gl/react-google-maps";
 import type { MapRouteSegment } from "@/hooks/useTripRouteLegs";
-import type { RouteViewMode } from "@/lib/maps/segment-colors";
 import { isMapsConfigured } from "./MapsProvider";
 import { MapsSetupGuide } from "./MapsSetupGuide";
-import { RouteModeSelector } from "./RouteModeSelector";
 import type { Place } from "@/types/database";
 
 const MAP_ID =
@@ -16,8 +14,6 @@ type TripMapProps = {
   places: Place[];
   focusedPlaceId: string | null;
   routeSegments: MapRouteSegment[];
-  routeViewMode: RouteViewMode;
-  onRouteViewModeChange: (mode: RouteViewMode) => void;
   routesLoading?: boolean;
 };
 
@@ -122,8 +118,6 @@ function MapContent({
   places,
   focusedPlaceId,
   routeSegments,
-  routeViewMode,
-  onRouteViewModeChange,
   routesLoading,
 }: TripMapProps) {
   const center = useMemo(() => {
@@ -152,17 +146,13 @@ function MapContent({
       <SegmentPolylines segments={routeSegments} />
       <PlaceMarkers places={places} focusedPlaceId={focusedPlaceId} />
 
-      <div className="absolute left-3 top-3 z-10 flex flex-col gap-2">
-        <RouteModeSelector
-          mode={routeViewMode}
-          onChange={onRouteViewModeChange}
-        />
-        {routesLoading && (
+      {routesLoading && (
+        <div className="absolute left-3 top-3 z-10">
           <span className="rounded-md bg-white/90 px-2 py-1 text-[10px] text-zinc-500 shadow">
             경로 계산 중...
           </span>
-        )}
-      </div>
+        </div>
+      )}
     </Map>
   );
 }
@@ -171,8 +161,6 @@ export function TripMap({
   places,
   focusedPlaceId,
   routeSegments,
-  routeViewMode,
-  onRouteViewModeChange,
   routesLoading,
 }: TripMapProps) {
   if (!isMapsConfigured()) {
@@ -191,8 +179,6 @@ export function TripMap({
         places={places}
         focusedPlaceId={focusedPlaceId}
         routeSegments={routeSegments}
-        routeViewMode={routeViewMode}
-        onRouteViewModeChange={onRouteViewModeChange}
         routesLoading={routesLoading}
       />
     </div>

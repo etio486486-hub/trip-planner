@@ -13,11 +13,12 @@ import {
 } from "lucide-react";
 import {
   fetchRestaurantPlaceDetails,
+  type NearbyRestaurant,
   type RestaurantPlaceDetails,
 } from "@/lib/maps/places-api";
 
 type RestaurantDetailModalProps = {
-  placeId: string | null;
+  restaurant: NearbyRestaurant | null;
   onClose: () => void;
 };
 
@@ -43,39 +44,40 @@ function DetailRow({
 }
 
 export function RestaurantDetailModal({
-  placeId,
+  restaurant,
   onClose,
 }: RestaurantDetailModalProps) {
   const [details, setDetails] = useState<RestaurantPlaceDetails | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [partialDetails, setPartialDetails] = useState(false);
 
   useEffect(() => {
-    if (!placeId) {
+    if (!restaurant) {
       setDetails(null);
-      setError(null);
+      setPartialDetails(false);
       return;
     }
 
     let cancelled = false;
     setLoading(true);
-    setError(null);
+    setPartialDetails(false);
 
-    fetchRestaurantPlaceDetails(placeId)
+    fetchRestaurantPlaceDetails(restaurant.placeId, restaurant)
       .then((data) => {
         if (cancelled) return;
         if (!data) {
-          setError("음식점 정보를 불러올 수 없습니다.");
           setDetails(null);
           return;
         }
         setDetails(data);
+        setPartialDetails(
+          data.phone == null &&
+            data.openingHours == null &&
+            data.websiteUri == null
+        );
       })
       .catch(() => {
-        if (!cancelled) {
-          setError("음식점 정보를 불러올 수 없습니다.");
-          setDetails(null);
-        }
+        if (!cancelled) setDetails(null);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -84,9 +86,9 @@ export function RestaurantDetailModal({
     return () => {
       cancelled = true;
     };
-  }, [placeId]);
+  }, [restaurant]);
 
-  if (!placeId) return null;
+  if (!restaurant) return null;
 
   return (
     <div
@@ -138,7 +140,9 @@ export function RestaurantDetailModal({
                 )}
               </>
             ) : (
-              <p className="text-sm text-red-600">{error}</p>
+              <p className="text-sm text-red-600">
+                음식점 정보를 불러올 수 없습니다.
+              </p>
             )}
           </div>
           <button
@@ -152,6 +156,12 @@ export function RestaurantDetailModal({
 
         {details && !loading && (
           <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-5 py-4">
+            {partialDetails && (
+              <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                일부 상세 정보는 Google API 제한으로 표시되지 않습니다. Google
+                지도에서 더 많은 정보를 확인할 수 있습니다.
+              </p>
+            )}
             <div className="flex flex-col gap-3">
               <DetailRow icon={MapPin} label="주소" value={details.address} />
               <DetailRow icon={Phone} label="전화" value={details.phone} />

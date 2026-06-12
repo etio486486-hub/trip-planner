@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { AlertCircle } from "lucide-react";
 import {
   buildMapSegments,
+  getSegmentModeKey,
   useTripRouteLegs,
 } from "@/hooks/useTripRouteLegs";
 import { useTripRealtime } from "@/hooks/useTripRealtime";
@@ -22,7 +23,9 @@ type TripPlannerClientProps = {
 function TripPlannerContent({ tripId }: TripPlannerClientProps) {
   const [selectedDayNumber, setSelectedDayNumber] = useState(1);
   const [focusedPlaceId, setFocusedPlaceId] = useState<string | null>(null);
-  const [routeViewMode, setRouteViewMode] = useState<RouteViewMode>("DRIVE");
+  const [segmentModes, setSegmentModes] = useState<
+    Record<string, RouteViewMode>
+  >({});
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("itinerary");
 
   const {
@@ -48,9 +51,20 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
 
   const { legs: routeLegs, loading: routesLoading } = useTripRouteLegs(places);
   const routeSegments = useMemo(
-    () => buildMapSegments(routeLegs, places, routeViewMode),
-    [routeLegs, places, routeViewMode]
+    () => buildMapSegments(routeLegs, places, segmentModes),
+    [routeLegs, places, segmentModes]
   );
+
+  const handleSegmentModeChange = (
+    fromId: string,
+    toId: string,
+    mode: RouteViewMode
+  ) => {
+    setSegmentModes((prev) => ({
+      ...prev,
+      [getSegmentModeKey(fromId, toId)]: mode,
+    }));
+  };
 
   const handleDeletePlace = async (id: string) => {
     try {
@@ -142,6 +156,8 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
             onUpdateDisplayName={updateDisplayName}
             onKickMember={handleKickMember}
             routeLegs={routeLegs}
+            segmentModes={segmentModes}
+            onSegmentModeChange={handleSegmentModeChange}
             sidebarTab={sidebarTab}
             onSidebarTabChange={setSidebarTab}
           />
@@ -150,8 +166,6 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
               places={places}
               focusedPlaceId={focusedPlaceId}
               routeSegments={routeSegments}
-              routeViewMode={routeViewMode}
-              onRouteViewModeChange={setRouteViewMode}
               routesLoading={routesLoading}
             />
           </main>

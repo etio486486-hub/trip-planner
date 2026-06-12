@@ -69,14 +69,27 @@ function buildPlacesKey(places: Place[]): string {
     .join("|");
 }
 
+export function getSegmentModeKey(fromId: string, toId: string): string {
+  return `${fromId}::${toId}`;
+}
+
+export function getSegmentMode(
+  segmentModes: Record<string, RouteViewMode>,
+  fromId: string,
+  toId: string
+): RouteViewMode {
+  return segmentModes[getSegmentModeKey(fromId, toId)] ?? "DRIVE";
+}
+
 export function buildMapSegments(
   legs: SegmentLegState[],
   places: Place[],
-  mode: RouteViewMode
+  segmentModes: Record<string, RouteViewMode>
 ): MapRouteSegment[] {
   return legs.map((leg) => {
     const from = places[leg.segmentIndex];
     const to = places[leg.segmentIndex + 1];
+    const mode = getSegmentMode(segmentModes, leg.fromId, leg.toId);
     const path =
       leg.error || leg.loading
         ? from && to
