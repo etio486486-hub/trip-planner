@@ -10,6 +10,7 @@ import { MapsProvider } from "./MapsProvider";
 import { TripMap } from "./TripMap";
 import { MemberNameModal } from "./MemberNameModal";
 import { TripSidebar } from "./TripSidebar";
+import type { SidebarTab } from "./TripMenuTabs";
 
 type TripPlannerClientProps = {
   tripId: string;
@@ -19,6 +20,7 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
   const [selectedDayNumber, setSelectedDayNumber] = useState(1);
   const [focusedPlaceId, setFocusedPlaceId] = useState<string | null>(null);
   const [routeViewMode, setRouteViewMode] = useState<RouteViewMode>("DRIVE");
+  const [sidebarTab, setSidebarTab] = useState<SidebarTab>("itinerary");
 
   const {
     trip,
@@ -137,6 +139,8 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
             onKickMember={handleKickMember}
             routeViewMode={routeViewMode}
             onRouteViewModeChange={setRouteViewMode}
+            sidebarTab={sidebarTab}
+            onSidebarTabChange={setSidebarTab}
           />
           <main className="relative flex-1">
             <TripMap

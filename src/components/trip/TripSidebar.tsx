@@ -1,12 +1,15 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
+import { ChecklistPanel } from "./ChecklistPanel";
 import { DayTabs } from "./DayTabs";
+import { ExpensePanel } from "./ExpensePanel";
 import { TripHeader } from "./TripHeader";
 import { InviteMembers } from "./InviteMembers";
 import { MemberList } from "./MemberList";
 import { PlaceList } from "./PlaceList";
 import { PlaceSearch } from "./PlaceSearch";
+import { TripMenuTabs, type SidebarTab } from "./TripMenuTabs";
 import type { RouteViewMode } from "@/lib/maps/segment-colors";
 import type { DailyPlan, Place, PresenceUser, Trip, TripMember } from "@/types/database";
 import type { PlaceInput } from "@/types/database";
@@ -39,6 +42,8 @@ type TripSidebarProps = {
   onKickMember: (memberId: string) => Promise<void>;
   routeViewMode: RouteViewMode;
   onRouteViewModeChange: (mode: RouteViewMode) => void;
+  sidebarTab: SidebarTab;
+  onSidebarTabChange: (tab: SidebarTab) => void;
 };
 
 export function TripSidebar({
@@ -65,6 +70,8 @@ export function TripSidebar({
   onKickMember,
   routeViewMode,
   onRouteViewModeChange,
+  sidebarTab,
+  onSidebarTabChange,
 }: TripSidebarProps) {
   return (
     <aside className="flex h-full w-[380px] shrink-0 flex-col border-r border-zinc-200 bg-white">
@@ -80,35 +87,44 @@ export function TripSidebar({
         onKickMember={onKickMember}
       />
 
-      <DayTabs
-        dailyPlans={dailyPlans}
-        selectedDayNumber={selectedDayNumber}
-        onSelectDay={onSelectDay}
-        onAddDay={onAddDay}
-        onRemoveDay={onRemoveDay}
-      />
+      <TripMenuTabs activeTab={sidebarTab} onTabChange={onSidebarTabChange} />
 
-      <div className="flex flex-1 flex-col overflow-hidden">
-        {loading ? (
-          <div className="flex flex-1 items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
-          </div>
-        ) : (
-          <div className="flex-1 overflow-y-auto">
-            <PlaceList
-              places={places}
-              selectedPlaceId={selectedPlaceId}
-              onSelectPlace={onSelectPlace}
-              onReorder={onReorderPlaces}
-              onDelete={onDeletePlace}
-              routeViewMode={routeViewMode}
-              onRouteViewModeChange={onRouteViewModeChange}
-            />
-          </div>
-        )}
-      </div>
+      {sidebarTab === "itinerary" && (
+        <>
+          <DayTabs
+            dailyPlans={dailyPlans}
+            selectedDayNumber={selectedDayNumber}
+            onSelectDay={onSelectDay}
+            onAddDay={onAddDay}
+            onRemoveDay={onRemoveDay}
+          />
 
-      <PlaceSearch onAdd={onAddPlace} />
+          <div className="flex flex-1 flex-col overflow-hidden">
+            {loading ? (
+              <div className="flex flex-1 items-center justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+              </div>
+            ) : (
+              <div className="flex-1 overflow-y-auto">
+                <PlaceList
+                  places={places}
+                  selectedPlaceId={selectedPlaceId}
+                  onSelectPlace={onSelectPlace}
+                  onReorder={onReorderPlaces}
+                  onDelete={onDeletePlace}
+                  routeViewMode={routeViewMode}
+                  onRouteViewModeChange={onRouteViewModeChange}
+                />
+              </div>
+            )}
+          </div>
+
+          <PlaceSearch onAdd={onAddPlace} />
+        </>
+      )}
+
+      {sidebarTab === "checklist" && <ChecklistPanel />}
+      {sidebarTab === "budget" && <ExpensePanel />}
     </aside>
   );
 }

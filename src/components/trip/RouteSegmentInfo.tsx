@@ -15,6 +15,7 @@ import {
   ROUTE_MODE_LABELS,
   type RouteViewMode,
 } from "@/lib/maps/segment-colors";
+import { toKoreanReading } from "@/lib/japanese-reading";
 import type { Place } from "@/types/database";
 
 type RouteSegmentInfoProps = {
@@ -26,16 +27,35 @@ type RouteSegmentInfoProps = {
   onRouteViewModeChange: (mode: RouteViewMode) => void;
 };
 
-function InfoRow({ label, value }: { label: string; value: string | null }) {
+function InfoRow({
+  label,
+  value,
+  reading,
+}: {
+  label: string;
+  value: string | null;
+  reading?: string | null;
+}) {
   if (!value) return null;
   return (
-    <p className="text-[11px] leading-relaxed text-zinc-600">
-      <span className="font-medium text-zinc-500">{label}</span> {value}
-    </p>
+    <div className="text-[11px] leading-relaxed text-zinc-600">
+      <p>
+        <span className="font-medium text-zinc-500">{label}</span> {value}
+      </p>
+      {reading && (
+        <p className="mt-0.5 text-[10px] text-blue-600">읽기: {reading}</p>
+      )}
+    </div>
   );
 }
 
-function CopyablePhrase({ text }: { text: string }) {
+function CopyablePhrase({
+  text,
+  reading,
+}: {
+  text: string;
+  reading?: string;
+}) {
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
@@ -54,6 +74,11 @@ function CopyablePhrase({ text }: { text: string }) {
       <div className="min-w-0 flex-1">
         <p className="text-[11px] font-medium text-amber-800">택시 멘트</p>
         <p className="break-words text-[11px] text-amber-900">{text}</p>
+        {reading && (
+          <p className="mt-0.5 break-words text-[10px] text-blue-600">
+            읽기: {reading}
+          </p>
+        )}
       </div>
       <button
         type="button"
@@ -147,7 +172,12 @@ export function RouteSegmentInfo({
               {routeViewMode === "DRIVE" && (
                 <>
                   <InfoRow label="예상 요금:" value={formatYen(taxi.fareYen)} />
-                  {taxi.phraseJa && <CopyablePhrase text={taxi.phraseJa} />}
+                  {taxi.phraseJa && (
+                    <CopyablePhrase
+                      text={taxi.phraseJa}
+                      reading={taxi.phraseReadingKo}
+                    />
+                  )}
                 </>
               )}
             </div>
@@ -177,9 +207,21 @@ export function RouteSegmentInfo({
                             {i + 1}구간 · {step.vehicleType ?? "대중교통"}{" "}
                             {step.lineShort ?? step.lineName}
                           </p>
-                          <InfoRow label="승차:" value={step.boardStop} />
-                          <InfoRow label="하차:" value={step.alightStop} />
-                          <InfoRow label="방향:" value={step.headsign} />
+                          <InfoRow
+                            label="승차:"
+                            value={step.boardStop}
+                            reading={toKoreanReading(step.boardStop ?? "")}
+                          />
+                          <InfoRow
+                            label="하차:"
+                            value={step.alightStop}
+                            reading={toKoreanReading(step.alightStop ?? "")}
+                          />
+                          <InfoRow
+                            label="방향:"
+                            value={step.headsign}
+                            reading={toKoreanReading(step.headsign ?? "")}
+                          />
                           <InfoRow label="시간:" value={step.duration} />
                         </div>
                       ))}

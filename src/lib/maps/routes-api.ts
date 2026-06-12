@@ -1,3 +1,4 @@
+import { buildTaxiPhraseWithReading } from "@/lib/japanese-reading";
 import { decodePolyline, type LatLng } from "./polyline";
 
 type TravelMode = "DRIVE" | "TRANSIT" | "WALK";
@@ -103,6 +104,7 @@ export type RouteLegDetails = {
     fareYen: number | null;
     phraseJa: string;
     phraseKo: string;
+    phraseReadingKo: string;
   };
   transit: TransitDetails | null;
   walking: string | null;
@@ -177,12 +179,9 @@ export function estimateJapanTaxiFare(meters: number): number {
 export function buildTaxiPhrases(destinationName: string): {
   phraseJa: string;
   phraseKo: string;
+  phraseReadingKo: string;
 } {
-  const name = destinationName.trim() || "目的地";
-  return {
-    phraseJa: `「${name}までお願いします」`,
-    phraseKo: `택시 기사님께: "${name}까지 가주세요"`,
-  };
+  return buildTaxiPhraseWithReading(destinationName);
 }
 
 function extractPathFromRoute(route?: RouteData): LatLng[] {
@@ -486,6 +485,7 @@ export async function computeRouteLegDetails(
         distanceMeters != null ? estimateJapanTaxiFare(distanceMeters) : null,
       phraseJa: phrases.phraseJa,
       phraseKo: phrases.phraseKo,
+      phraseReadingKo: phrases.phraseReadingKo,
     },
     transit,
     walking: walk.duration,

@@ -1,3 +1,5 @@
+import { toKoreanReading } from "@/lib/japanese-reading";
+
 export type RestaurantInfo = {
   isRestaurant: boolean;
   name: string | null;
@@ -63,17 +65,49 @@ function isRestaurantType(types: string[] | undefined, primaryType?: string): bo
 }
 
 export type NearbyRestaurant = {
+  placeId: string;
   name: string;
+  nameReadingKo: string | null;
   rating: number | null;
   reviewCount: number | null;
   address: string | null;
 };
 
+export type RestaurantPlaceDetails = {
+  placeId: string;
+  name: string;
+  nameReadingKo: string | null;
+  rating: number | null;
+  reviewCount: number | null;
+  address: string | null;
+  phone: string | null;
+  googleMapsUri: string | null;
+  websiteUri: string | null;
+  openingHours: string | null;
+  priceLevelLabel: string | null;
+  priceRangeText: string | null;
+  primaryType: string | null;
+  isOpenNow: boolean | null;
+};
+
 type NearbyPlace = {
+  id?: string;
   displayName?: { text?: string };
   rating?: number;
   userRatingCount?: number;
   formattedAddress?: string;
+};
+
+type PlaceDetailsResponse = PlacesResponse & {
+  id?: string;
+  rating?: number;
+  userRatingCount?: number;
+  formattedAddress?: string;
+  nationalPhoneNumber?: string;
+  googleMapsUri?: string;
+  websiteUri?: string;
+  regularOpeningHours?: { weekdayDescriptions?: string[] };
+  currentOpeningHours?: { openNow?: boolean };
 };
 
 export async function fetchNearbyRestaurants(
@@ -92,7 +126,7 @@ export async function fetchNearbyRestaurants(
         "Content-Type": "application/json",
         "X-Goog-Api-Key": apiKey,
         "X-Goog-FieldMask":
-          "places.displayName,places.rating,places.userRatingCount,places.formattedAddress",
+          "places.id,places.displayName,places.rating,places.userRatingCount,places.formattedAddress",
       },
       body: JSON.stringify({
         includedTypes: ["restaurant"],
@@ -112,16 +146,71 @@ export async function fetchNearbyRestaurants(
 
   const data = (await response.json()) as { places?: NearbyPlace[] };
   const ranked = (data.places ?? [])
-    .map((p) => ({
-      name: p.displayName?.text ?? "이름 없음",
-      rating: p.rating ?? null,
-      reviewCount: p.userRatingCount ?? null,
-      address: p.formattedAddress ?? null,
-    }))
+    .map((p) => {
+      const name = p.displayName?.text ?? "이름 없음";
+      return {
+        placeId: p.id ?? "",
+        name,
+        nameReadingKo: toKoreanReading(name),
+        rating: p.rating ?? null,
+        reviewCount: p.userRatingCount ?? null,
+        address: p.formattedAddress ?? null,
+      };
+    })
+    .filter((p) => p.placeId)
     .filter((p) => p.rating != null)
     .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
 
   return ranked.slice(0, 3);
+}
+
+export async function fetchRestaurantPlaceDetails(
+  placeId: string
+): Promise<RestaurantPlaceDetails | null> {
+  if (!placeId) return null;
+
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
+  if (!apiKey.startsWith("AIza")) return null;
+
+  const response = await fetch(
+    `https://places.googleapis.com/v1/${placeId}`,
+    {
+      headers: {
+        "X-Goog-Api-Key": apiKey,
+        "X-Goog-FieldMask":
+          "id,displayName,rating,userRatingCount,formattedAddress,nationalPhoneNumber,googleMapsUri,websiteUri,regularOpeningHours,currentOpeningHours,priceLevel,priceRange,primaryType,types",
+      },
+    }
+  );
+
+  if (!response.ok) return null;
+
+  const data = (await response.json()) as PlaceDetailsResponse;
+  const types = data.types ?? [];
+  const isRestaurant = isRestaurantType(types, data.primaryType);
+  if (!isRestaurant) return null;
+
+  const name = data.displayName?.text ?? "이름 없음";
+  const hours = data.regularOpeningHours?.weekdayDescriptions;
+
+  return {
+    placeId: data.id ?? placeId,
+    name,
+    nameReadingKo: toKoreanReading(name),
+    rating: data.rating ?? null,
+    reviewCount: data.userRatingCount ?? null,
+    address: data.formattedAddress ?? null,
+    phone: data.nationalPhoneNumber ?? null,
+    googleMapsUri: data.googleMapsUri ?? null,
+    websiteUri: data.websiteUri ?? null,
+    openingHours: hours?.length ? hours.join("\n") : null,
+    priceLevelLabel: data.priceLevel
+      ? (PRICE_LEVEL_LABELS[data.priceLevel] ?? data.priceLevel)
+      : null,
+    priceRangeText: formatPriceRange(data.priceRange),
+    primaryType: data.primaryType ?? null,
+    isOpenNow: data.currentOpeningHours?.openNow ?? null,
+  };
 }
 
 export async function fetchRestaurantInfo(

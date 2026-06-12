@@ -25,6 +25,7 @@ const EMPTY: RouteLegResult = {
     fareYen: null,
     phraseJa: "",
     phraseKo: "",
+    phraseReadingKo: "",
   },
   transit: null,
   walking: null,
