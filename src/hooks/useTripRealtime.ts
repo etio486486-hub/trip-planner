@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import {
+  bindUserToTrip,
+  getDeviceMemberIdsForTrip,
   getUserDisplayName,
-  getUserId,
+  getUserIdForTrip,
   hasCustomDisplayName,
   setUserDisplayName,
 } from "@/lib/user";
@@ -66,8 +68,10 @@ export function useTripRealtime({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [needsNameSetup, setNeedsNameSetup] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState("");
 
   const dailyPlanIdsRef = useRef<Set<string>>(new Set());
+  const tripUserIdRef = useRef("");
   const selectedDailyPlanIdRef = useRef<string | null>(null);
   const presenceChannelRef = useRef<ReturnType<
     ReturnType<typeof getSupabase>["channel"]
@@ -83,6 +87,44 @@ export function useTripRealtime({
   useEffect(() => {
     selectedDailyPlanIdRef.current = selectedDailyPlan?.id ?? null;
   }, [selectedDailyPlan]);
+
+  const reconcileDeviceMembers = useCallback(
+    async (activeUserId: string, creatorId: string, myName: string) => {
+      const removeIds = new Set<string>();
+
+      for (const oldId of getDeviceMemberIdsForTrip(tripId)) {
+        if (oldId !== activeUserId) removeIds.add(oldId);
+      }
+
+      if (myName) {
+        const { data: sameNameMembers } = await getSupabase()
+          .from("trip_members")
+          .select("user_id")
+          .eq("trip_id", tripId)
+          .eq("display_name", myName)
+          .neq("user_id", activeUserId);
+
+        for (const row of sameNameMembers ?? []) {
+          if (row.user_id !== creatorId) {
+            removeIds.add(row.user_id);
+          }
+        }
+      }
+
+      await Promise.all(
+        [...removeIds].map((oldId) =>
+          getSupabase()
+            .from("trip_members")
+            .delete()
+            .eq("trip_id", tripId)
+            .eq("user_id", oldId)
+        )
+      );
+
+      bindUserToTrip(tripId, activeUserId);
+    },
+    [tripId]
+  );
 
   const loadPlacesForDay = useCallback(async (dailyPlanId: string) => {
     const { data, error: placesError } = await getSupabase()
@@ -117,13 +159,29 @@ export function useTripRealtime({
       if (tripError) throw tripError;
       setTrip(tripData);
 
-      const userId = getUserId();
+      const { data: membersData, error: membersError } = await getSupabase()
+        .from("trip_members")
+        .select("*")
+        .eq("trip_id", tripId);
+
+      if (membersError) throw membersError;
+
+      const userId = getUserIdForTrip(tripId, membersData ?? []);
+      tripUserIdRef.current = userId;
+      setCurrentUserId(userId);
+
       const nameReady = hasCustomDisplayName();
+      const displayName = getUserDisplayName();
 
       setNeedsNameSetup(!nameReady);
 
       if (nameReady) {
-        const displayName = getUserDisplayName();
+        await reconcileDeviceMembers(
+          userId,
+          tripData.creator_id,
+          displayName
+        );
+
         await getSupabase()
           .from("trip_members")
           .upsert(
@@ -136,13 +194,13 @@ export function useTripRealtime({
           );
       }
 
-      const { data: membersData, error: membersError } = await getSupabase()
+      const { data: refreshedMembers, error: refreshError } = await getSupabase()
         .from("trip_members")
         .select("*")
         .eq("trip_id", tripId);
 
-      if (membersError) throw membersError;
-      setMembers(membersData ?? []);
+      if (refreshError) throw refreshError;
+      setMembers(refreshedMembers ?? []);
 
       const { data: plansData, error: plansError } = await getSupabase()
         .from("daily_plans")
@@ -177,7 +235,7 @@ export function useTripRealtime({
     } finally {
       setLoading(false);
     }
-  }, [tripId, selectedDayNumber, loadPlacesForDay]);
+  }, [tripId, selectedDayNumber, loadPlacesForDay, reconcileDeviceMembers]);
 
   useEffect(() => {
     loadTripData();
@@ -269,7 +327,7 @@ export function useTripRealtime({
           } else if (payload.eventType === "DELETE") {
             const member = payload.old as TripMember;
             if (member.trip_id !== tripId) return;
-            if (member.user_id === getUserId()) {
+            if (member.user_id === tripUserIdRef.current) {
               window.location.href = "/";
               return;
             }
@@ -288,7 +346,8 @@ export function useTripRealtime({
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
 
-    const userId = getUserId();
+    const userId = tripUserIdRef.current || getUserIdForTrip(tripId);
+    if (!userId) return;
 
     const channel = getSupabase().channel(`presence:trip:${tripId}`, {
       config: { presence: { key: userId } },
@@ -319,22 +378,28 @@ export function useTripRealtime({
       presenceChannelRef.current = null;
       getSupabase().removeChannel(channel);
     };
-  }, [tripId]);
+  }, [tripId, currentUserId]);
 
   const trackPresence = useCallback(async (displayName: string) => {
     const channel = presenceChannelRef.current;
     if (!channel) return;
+    const userId = tripUserIdRef.current || getUserIdForTrip(tripId);
     await channel.track({
-      user_id: getUserId(),
+      user_id: userId,
       display_name: displayName,
       online_at: new Date().toISOString(),
     });
-  }, []);
+  }, [tripId]);
 
   const upsertMemberName = useCallback(
     async (name: string) => {
-      const userId = getUserId();
+      const userId = getUserIdForTrip(tripId, members);
+      tripUserIdRef.current = userId;
+      setCurrentUserId(userId);
       setUserDisplayName(name);
+
+      const creatorId = trip?.creator_id ?? "";
+      await reconcileDeviceMembers(userId, creatorId, name);
 
       const { data, error: upsertError } = await getSupabase()
         .from("trip_members")
@@ -362,9 +427,16 @@ export function useTripRealtime({
       });
 
       setNeedsNameSetup(false);
+      bindUserToTrip(tripId, userId);
       await trackPresence(name);
+
+      const { data: refreshedMembers } = await getSupabase()
+        .from("trip_members")
+        .select("*")
+        .eq("trip_id", tripId);
+      if (refreshedMembers) setMembers(refreshedMembers);
     },
-    [tripId, trackPresence]
+    [tripId, trip, members, trackPresence, reconcileDeviceMembers]
   );
 
   const joinTripAsMember = useCallback(
@@ -383,7 +455,8 @@ export function useTripRealtime({
 
   const kickMember = useCallback(
     async (memberId: string) => {
-      if (!trip || getUserId() !== trip.creator_id) {
+      const me = tripUserIdRef.current || currentUserId;
+      if (!trip || me !== trip.creator_id) {
         throw new Error("강퇴 권한이 없습니다.");
       }
 
@@ -401,7 +474,7 @@ export function useTripRealtime({
 
       setMembers((prev) => prev.filter((m) => m.id !== memberId));
     },
-    [trip, members]
+    [trip, members, currentUserId]
   );
 
   const addPlace = useCallback(
@@ -576,6 +649,6 @@ export function useTripRealtime({
     joinTripAsMember,
     updateDisplayName,
     kickMember,
-    currentUserId: getUserId(),
+    currentUserId,
   };
 }
