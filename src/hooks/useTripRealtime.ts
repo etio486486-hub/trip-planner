@@ -200,10 +200,14 @@ export function useTripRealtime({
         "postgres_changes",
         { event: "*", schema: "public", table: "places" },
         (payload) => {
-          const dailyPlanId =
-            payload.eventType === "DELETE"
-              ? (payload.old as Place).daily_plan_id
-              : (payload.new as Place).daily_plan_id;
+          if (payload.eventType === "DELETE") {
+            const deletedId = (payload.old as { id?: string }).id;
+            if (!deletedId) return;
+            setPlaces((prev) => prev.filter((p) => p.id !== deletedId));
+            return;
+          }
+
+          const dailyPlanId = (payload.new as Place).daily_plan_id;
 
           if (!dailyPlanIdsRef.current.has(dailyPlanId)) return;
           if (dailyPlanId !== selectedDailyPlanIdRef.current) return;
@@ -223,9 +227,6 @@ export function useTripRealtime({
                 (a, b) => a.visit_order - b.visit_order
               )
             );
-          } else if (payload.eventType === "DELETE") {
-            const deleted = payload.old as Place;
-            setPlaces((prev) => prev.filter((p) => p.id !== deleted.id));
           }
         }
       )
@@ -427,14 +428,23 @@ export function useTripRealtime({
     [selectedDailyPlan, places]
   );
 
-  const deletePlace = useCallback(async (placeId: string) => {
-    const { error: deleteError } = await getSupabase()
-      .from("places")
-      .delete()
-      .eq("id", placeId);
+  const deletePlace = useCallback(
+    async (placeId: string) => {
+      const previous = places;
+      setPlaces((prev) => prev.filter((p) => p.id !== placeId));
 
-    if (deleteError) throw deleteError;
-  }, []);
+      const { error: deleteError } = await getSupabase()
+        .from("places")
+        .delete()
+        .eq("id", placeId);
+
+      if (deleteError) {
+        setPlaces(previous);
+        throw deleteError;
+      }
+    },
+    [places]
+  );
 
   const reorderPlaces = useCallback(async (orderedIds: string[]) => {
     const updates = orderedIds.map((id, index) => ({

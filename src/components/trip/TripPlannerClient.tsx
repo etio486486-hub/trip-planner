@@ -40,8 +40,14 @@ export function TripPlannerClient({ tripId }: TripPlannerClientProps) {
   const handleDeletePlace = async (id: string) => {
     try {
       await deletePlace(id);
+      if (focusedPlaceId === id) {
+        setFocusedPlaceId(null);
+      }
     } catch (err) {
       console.error(err);
+      alert(
+        err instanceof Error ? err.message : "장소 삭제에 실패했습니다."
+      );
     }
   };
 

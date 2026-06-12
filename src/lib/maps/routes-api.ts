@@ -138,21 +138,12 @@ async function computeDriveRoute(
   origin: LatLng,
   destination: LatLng
 ): Promise<RouteInfo | null> {
-  const trafficAware = await requestRoute({
-    ...buildBaseBody(origin, destination, "DRIVE"),
-    routingPreference: "TRAFFIC_AWARE",
-    departureTime: new Date().toISOString(),
-  });
-
-  const trafficRoute = trafficAware?.routes?.[0];
-  if (trafficRoute) return extractRouteInfo(trafficRoute);
-
-  const trafficUnaware = await requestRoute({
+  const response = await requestRoute({
     ...buildBaseBody(origin, destination, "DRIVE"),
     routingPreference: "TRAFFIC_UNAWARE",
   });
 
-  return extractRouteInfo(trafficUnaware?.routes?.[0]);
+  return extractRouteInfo(response?.routes?.[0]);
 }
 
 async function computeTransitRoute(
@@ -162,9 +153,6 @@ async function computeTransitRoute(
   const response = await requestRoute({
     ...buildBaseBody(origin, destination, "TRANSIT"),
     departureTime: new Date().toISOString(),
-    transitPreferences: {
-      routingPreference: "LESS_WALKING",
-    },
   });
 
   return extractRouteInfo(response?.routes?.[0]);

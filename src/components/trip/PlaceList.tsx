@@ -90,8 +90,12 @@ function SortablePlaceItem({
       </button>
       <button
         type="button"
-        onClick={() => onDelete(place.id)}
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete(place.id);
+        }}
         className="shrink-0 rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-500"
+        aria-label={`${place.name} 삭제`}
       >
         <Trash2 className="h-4 w-4" />
       </button>
