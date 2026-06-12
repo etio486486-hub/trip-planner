@@ -1,0 +1,45 @@
+"use client";
+
+import { List, Map } from "lucide-react";
+
+type MobileMapPanelToggleProps = {
+  focus: "map" | "panel";
+  onFocusChange: (focus: "map" | "panel") => void;
+};
+
+export function MobileMapPanelToggle({
+  focus,
+  onFocusChange,
+}: MobileMapPanelToggleProps) {
+  return (
+    <div
+      className="pointer-events-auto flex gap-1 rounded-full bg-white/95 p-1 shadow-lg ring-1 ring-zinc-200 backdrop-blur lg:hidden"
+      style={{ paddingBottom: "max(4px, env(safe-area-inset-bottom))" }}
+    >
+      <button
+        type="button"
+        onClick={() => onFocusChange("map")}
+        className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium ${
+          focus === "map"
+            ? "bg-blue-600 text-white"
+            : "text-zinc-600 hover:bg-zinc-100"
+        }`}
+      >
+        <Map className="h-3.5 w-3.5" />
+        지도
+      </button>
+      <button
+        type="button"
+        onClick={() => onFocusChange("panel")}
+        className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium ${
+          focus === "panel"
+            ? "bg-blue-600 text-white"
+            : "text-zinc-600 hover:bg-zinc-100"
+        }`}
+      >
+        <List className="h-3.5 w-3.5" />
+        일정
+      </button>
+    </div>
+  );
+}

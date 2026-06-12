@@ -28,7 +28,7 @@ export function TripMenuTabs({ activeTab, onTabChange }: TripMenuTabsProps) {
           key={id}
           type="button"
           onClick={() => onTabChange(id)}
-          className={`flex flex-1 items-center justify-center gap-1.5 border-b-2 px-2 py-2.5 text-xs font-medium transition-colors ${
+          className={`flex min-h-[44px] flex-1 items-center justify-center gap-1.5 border-b-2 px-2 py-2.5 text-xs font-medium transition-colors ${
             activeTab === id
               ? "border-blue-600 text-blue-600"
               : "border-transparent text-zinc-500 hover:text-zinc-700"

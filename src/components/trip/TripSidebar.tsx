@@ -93,7 +93,7 @@ export function TripSidebar({
   onSidebarTabChange,
 }: TripSidebarProps) {
   return (
-    <aside className="flex h-full w-[380px] shrink-0 flex-col border-r border-zinc-200 bg-white">
+    <aside className="flex h-full w-full min-w-0 flex-col border-zinc-200 bg-white lg:border-r">
       <TripHeader trip={trip} onUpdate={onUpdateTrip} />
 
       <InviteMembers tripId={tripId} />
