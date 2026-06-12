@@ -33,6 +33,29 @@ body {
   overscroll-behavior: none;
 }
 
+/* 입력 필드 글자색 — 다크모드/상속으로 흐려지는 문제 방지 */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+textarea,
+select {
+  color: #171717 !important;
+  -webkit-text-fill-color: #171717;
+  caret-color: #171717;
+  background-color: #ffffff;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #737373 !important;
+  opacity: 1;
+  -webkit-text-fill-color: #737373;
+}
+
+input[type="time"]::-webkit-datetime-edit,
+input[type="date"]::-webkit-datetime-edit {
+  color: #171717;
+  -webkit-text-fill-color: #171717;
+}
+
 /* iOS/Android 터치 스크롤 */
 .overflow-y-auto,
 .overflow-auto {

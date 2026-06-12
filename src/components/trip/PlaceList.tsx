@@ -32,7 +32,7 @@ import type { Place, PlaceScheduleUpdate } from "@/types/database";
 type PlaceListProps = {
   places: Place[];
   selectedPlaceId: string | null;
-  onSelectPlace: (placeId: string) => void;
+  onSelectPlace: (placeId: string | null) => void;
   onReorder: (orderedIds: string[]) => void;
   onDelete: (placeId: string) => void;
   routeLegs: SegmentLegState[];
@@ -63,7 +63,7 @@ function SortablePlaceItem({
   place: Place;
   index: number;
   selected: boolean;
-  onSelect: (id: string) => void;
+  onSelect: (id: string | null) => void;
   onDelete: (id: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
@@ -103,7 +103,7 @@ function SortablePlaceItem({
       </span>
       <button
         type="button"
-        onClick={() => onSelect(place.id)}
+        onClick={() => onSelect(selected ? null : place.id)}
         className="min-w-0 flex-1 text-left"
       >
         <p className="truncate text-sm font-medium text-zinc-800">

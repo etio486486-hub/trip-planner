@@ -48,7 +48,7 @@ type TripSidebarProps = {
   onUpdatePlace: (placeId: string, data: PlaceScheduleUpdate) => Promise<void>;
   onReorderPlaces: (ids: string[]) => void;
   selectedPlaceId: string | null;
-  onSelectPlace: (placeId: string) => void;
+  onSelectPlace: (placeId: string | null) => void;
   currentUserId: string;
   creatorId: string | null;
   onUpdateDisplayName: (name: string) => Promise<void>;
@@ -96,7 +96,7 @@ function ItineraryContent({
   loading: boolean;
   places: Place[];
   selectedPlaceId: string | null;
-  onSelectPlace: (placeId: string) => void;
+  onSelectPlace: (placeId: string | null) => void;
   onReorderPlaces: (ids: string[]) => void;
   onDeletePlace: (id: string) => void;
   routeLegs: SegmentLegState[];
@@ -221,7 +221,11 @@ export function TripSidebar({
         </div>
 
         <CollapsibleSection title="팀 · 초대" summary={teamSummary}>
-          <InviteMembers tripId={tripId} compact />
+          <InviteMembers
+            tripId={tripId}
+            inviteCode={trip?.invite_code}
+            compact
+          />
           <MemberList
             members={members}
             onlineUsers={onlineUsers}
@@ -301,7 +305,7 @@ export function TripSidebar({
         <div className="absolute right-3 top-3">{shareMenu}</div>
       </div>
 
-      <InviteMembers tripId={tripId} />
+      <InviteMembers tripId={tripId} inviteCode={trip?.invite_code} />
       <MemberList
         members={members}
         onlineUsers={onlineUsers}

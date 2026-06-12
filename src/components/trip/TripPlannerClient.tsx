@@ -14,6 +14,7 @@ import { useTripExpenses } from "@/hooks/useTripExpenses";
 import { useTripRealtime } from "@/hooks/useTripRealtime";
 import type { RouteViewMode } from "@/lib/maps/segment-colors";
 import { DeviceIdentityGuard } from "./DeviceIdentityGuard";
+import { TripJoinGate } from "./TripJoinGate";
 import { MapsProvider } from "./MapsProvider";
 import { TripMap } from "./TripMap";
 import { MemberNameModal } from "./MemberNameModal";
@@ -302,7 +303,9 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
 export function TripPlannerClient({ tripId }: TripPlannerClientProps) {
   return (
     <DeviceIdentityGuard>
-      <TripPlannerContent tripId={tripId} />
+      <TripJoinGate tripId={tripId}>
+        <TripPlannerContent tripId={tripId} />
+      </TripJoinGate>
     </DeviceIdentityGuard>
   );
 }

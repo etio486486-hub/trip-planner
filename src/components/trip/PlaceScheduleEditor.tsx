@@ -66,7 +66,7 @@ export function PlaceScheduleEditor({
             type="time"
             value={visitTime}
             onChange={(e) => setVisitTime(e.target.value)}
-            className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-xs outline-none focus:border-blue-400"
+            className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-900 outline-none focus:border-blue-400"
           />
         </div>
         <div>
@@ -80,7 +80,7 @@ export function PlaceScheduleEditor({
             value={duration}
             onChange={(e) => setDuration(e.target.value)}
             placeholder="60"
-            className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-xs outline-none focus:border-blue-400"
+            className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-900 placeholder:text-zinc-500 outline-none focus:border-blue-400"
           />
         </div>
       </div>
@@ -94,7 +94,7 @@ export function PlaceScheduleEditor({
           onChange={(e) => setMemo(e.target.value)}
           rows={2}
           placeholder="예약번호, 팁, 주의사항..."
-          className="w-full resize-none rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-xs outline-none focus:border-blue-400"
+          className="w-full resize-none rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-900 placeholder:text-zinc-500 outline-none focus:border-blue-400"
         />
       </div>
       <button

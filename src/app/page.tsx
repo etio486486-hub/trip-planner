@@ -1,65 +1,50 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { Map, Plus, Loader2 } from "lucide-react";
+import { KeyRound, Link2, Loader2, Map, Plus } from "lucide-react";
 import {
   getSupabase,
   getSupabaseSetupMessage,
   isSupabaseConfigured,
 } from "@/lib/supabase/client";
+import { generateInviteCode, normalizeInviteCode, parseTripJoinInput } from "@/lib/invite-code";
+import { buildTripJoinUrl, grantTripAccess } from "@/lib/trip-access";
 import { getUserId, syncDeviceIdentity } from "@/lib/user";
-import type { Trip } from "@/types/database";
 
 function formatSupabaseError(message: string): string {
   if (message.includes("Could not find the table")) {
     return "DB 테이블이 없습니다. Supabase SQL Editor에서 supabase/schema.sql을 실행해 주세요.";
   }
   if (message.includes("Invalid API key") || message.includes("401")) {
-    return "Supabase API 키가 올바르지 않습니다. Publishable key(sb_publishable_...)를 .env.local에 넣었는지 확인하세요.";
+    return "Supabase API 키가 올바르지 않습니다.";
+  }
+  if (message.includes("invite_code")) {
+    return "참여 코드 컬럼이 없습니다. supabase/migrations/20260612_trip_invite_code.sql 을 실행해 주세요.";
   }
   return `오류: ${message}`;
 }
 
 export default function Home() {
-  const [trips, setTrips] = useState<Trip[]>([]);
-  const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [joining, setJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [joinCode, setJoinCode] = useState("");
+  const [joinLink, setJoinLink] = useState("");
 
   const supabaseReady = isSupabaseConfigured();
-
-  useEffect(() => {
-    syncDeviceIdentity();
-
-    if (!supabaseReady) {
-      setLoading(false);
-      return;
-    }
-
-    getSupabase()
-      .from("trips")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .then(({ data, error: fetchError }) => {
-        if (fetchError) {
-          setError(formatSupabaseError(fetchError.message));
-        } else {
-          setTrips(data ?? []);
-        }
-        setLoading(false);
-      });
-  }, [supabaseReady]);
 
   const createTrip = async () => {
     if (!supabaseReady) return;
 
+    syncDeviceIdentity();
     setCreating(true);
     setError(null);
 
     const today = new Date();
     const end = new Date(today);
     end.setDate(end.getDate() + 2);
+    const inviteCode = generateInviteCode();
 
     const { data, error: insertError } = await getSupabase()
       .from("trips")
@@ -68,6 +53,7 @@ export default function Home() {
         start_date: today.toISOString().split("T")[0],
         end_date: end.toISOString().split("T")[0],
         creator_id: getUserId(),
+        invite_code: inviteCode,
       })
       .select()
       .single();
@@ -80,7 +66,99 @@ export default function Home() {
     }
 
     if (data) {
-      window.location.href = `/trips/${data.id}`;
+      grantTripAccess(data.id, inviteCode);
+      window.location.href = `/trips/${data.id}?code=${encodeURIComponent(inviteCode)}`;
+    }
+  };
+
+  const joinWithCode = async () => {
+    const code = normalizeInviteCode(joinCode);
+    if (!code) {
+      setError("참여 코드를 입력해 주세요.");
+      return;
+    }
+
+    setJoining(true);
+    setError(null);
+
+    const { data, error: fetchError } = await getSupabase()
+      .from("trips")
+      .select("id, invite_code")
+      .eq("invite_code", code)
+      .maybeSingle();
+
+    setJoining(false);
+
+    if (fetchError) {
+      setError(formatSupabaseError(fetchError.message));
+      return;
+    }
+
+    if (!data) {
+      setError("일치하는 여행을 찾을 수 없습니다. 코드를 확인해 주세요.");
+      return;
+    }
+
+    grantTripAccess(data.id, data.invite_code ?? code);
+    window.location.href = `/trips/${data.id}?code=${encodeURIComponent(data.invite_code ?? code)}`;
+  };
+
+  const joinWithLink = async () => {
+    const parsed = parseTripJoinInput(joinLink);
+    if (!parsed.tripId && !parsed.code) {
+      setError("올바른 초대 링크 또는 여행 ID를 붙여넣어 주세요.");
+      return;
+    }
+
+    setJoining(true);
+    setError(null);
+
+    if (parsed.tripId) {
+      const { data, error: fetchError } = await getSupabase()
+        .from("trips")
+        .select("id, invite_code")
+        .eq("id", parsed.tripId)
+        .maybeSingle();
+
+      setJoining(false);
+
+      if (fetchError || !data) {
+        setError("여행을 찾을 수 없습니다.");
+        return;
+      }
+
+      const code = parsed.code ?? data.invite_code;
+      if (!code) {
+        setError("참여 코드가 필요합니다. 링크에 ?code= 가 포함되어 있는지 확인해 주세요.");
+        return;
+      }
+
+      if (normalizeInviteCode(code) !== normalizeInviteCode(data.invite_code ?? "")) {
+        setError("참여 코드가 올바르지 않습니다.");
+        return;
+      }
+
+      grantTripAccess(data.id, data.invite_code!);
+      window.location.href = buildTripJoinUrl(data.id, data.invite_code!);
+      return;
+    }
+
+    if (parsed.code) {
+      const { data, error: fetchError } = await getSupabase()
+        .from("trips")
+        .select("id, invite_code")
+        .eq("invite_code", parsed.code)
+        .maybeSingle();
+
+      setJoining(false);
+
+      if (fetchError || !data) {
+        setError("일치하는 여행을 찾을 수 없습니다.");
+        return;
+      }
+
+      grantTripAccess(data.id, data.invite_code!);
+      window.location.href = buildTripJoinUrl(data.id, data.invite_code!);
     }
   };
 
@@ -93,7 +171,7 @@ export default function Home() {
           </div>
           <h1 className="text-3xl font-bold text-zinc-900">여행 플래너</h1>
           <p className="mt-2 text-zinc-600">
-            Google Maps + 실시간 공유로 함께 일정을 짜세요
+            초대 링크·참여 코드로만 여행에 참여할 수 있습니다
           </p>
         </div>
 
@@ -105,13 +183,6 @@ export default function Home() {
             <pre className="mt-4 whitespace-pre-wrap rounded-lg bg-white/70 p-4 text-left text-xs leading-relaxed text-amber-900">
               {getSupabaseSetupMessage()}
             </pre>
-            <p className="mt-4 text-center text-xs text-amber-700">
-              .env.local 예시:
-              <br />
-              NEXT_PUBLIC_SUPABASE_URL=https://abcdefgh.supabase.co
-              <br />
-              NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOi...
-            </p>
           </div>
         ) : (
           <>
@@ -120,11 +191,12 @@ export default function Home() {
                 {error}
               </div>
             )}
+
             <button
               type="button"
               onClick={createTrip}
               disabled={creating}
-              className="mb-8 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-60"
+              className="mb-6 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-60"
             >
               {creating ? (
                 <Loader2 className="h-5 w-5 animate-spin" />
@@ -134,31 +206,77 @@ export default function Home() {
               새 여행 만들기
             </button>
 
-            {loading ? (
-              <div className="flex justify-center py-12">
-                <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
-              </div>
-            ) : trips.length === 0 ? (
-              <p className="text-center text-sm text-zinc-500">
-                아직 여행이 없습니다. 위 버튼으로 시작하세요.
-              </p>
-            ) : (
-              <div className="space-y-3">
-                <h2 className="text-sm font-semibold text-zinc-500">내 여행</h2>
-                {trips.map((trip) => (
-                  <Link
-                    key={trip.id}
-                    href={`/trips/${trip.id}`}
-                    className="block rounded-xl border border-zinc-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+            <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
+              <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-zinc-800">
+                <KeyRound className="h-4 w-4 text-blue-600" />
+                여행 참여하기
+              </h2>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-zinc-600">
+                    참여 코드 (6자리)
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={joinCode}
+                      onChange={(e) =>
+                        setJoinCode(e.target.value.toUpperCase())
+                      }
+                      onKeyDown={(e) => e.key === "Enter" && joinWithCode()}
+                      placeholder="ABC123"
+                      className="min-w-0 flex-1 rounded-lg border border-zinc-300 px-3 py-2.5 text-center font-mono font-bold tracking-widest"
+                    />
+                    <button
+                      type="button"
+                      onClick={joinWithCode}
+                      disabled={joining}
+                      className="shrink-0 rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
+                    >
+                      입장
+                    </button>
+                  </div>
+                </div>
+
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-zinc-200" />
+                  </div>
+                  <div className="relative flex justify-center text-xs text-zinc-400">
+                    <span className="bg-white px-2">또는</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-1 flex items-center gap-1 text-xs font-medium text-zinc-600">
+                    <Link2 className="h-3.5 w-3.5" />
+                    초대 링크 붙여넣기
+                  </label>
+                  <input
+                    type="text"
+                    value={joinLink}
+                    onChange={(e) => setJoinLink(e.target.value)}
+                    placeholder="https://.../trips/...?code=..."
+                    className="w-full rounded-lg border border-zinc-300 px-3 py-2.5 text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={joinWithLink}
+                    disabled={joining}
+                    className="mt-2 w-full rounded-lg border border-zinc-300 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
                   >
-                    <p className="font-semibold text-zinc-900">{trip.title}</p>
-                    <p className="mt-1 text-sm text-zinc-500">
-                      {trip.start_date} ~ {trip.end_date}
-                    </p>
-                  </Link>
-                ))}
+                    {joining ? "확인 중..." : "링크로 입장"}
+                  </button>
+                </div>
               </div>
-            )}
+            </div>
+
+            <p className="mt-8 text-center text-xs text-zinc-500">
+              <Link href="/admin" className="hover:underline">
+                관리자
+              </Link>
+            </p>
           </>
         )}
       </div>

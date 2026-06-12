@@ -4,6 +4,7 @@ export interface Trip {
   start_date: string;
   end_date: string;
   creator_id: string;
+  invite_code: string | null;
   created_at?: string;
 }
 
@@ -76,6 +77,7 @@ export interface Database {
           start_date: string;
           end_date: string;
           creator_id: string;
+          invite_code?: string | null;
           created_at?: string;
         };
         Update: {
@@ -84,6 +86,7 @@ export interface Database {
           start_date?: string;
           end_date?: string;
           creator_id?: string;
+          invite_code?: string | null;
           created_at?: string;
         };
         Relationships: [];

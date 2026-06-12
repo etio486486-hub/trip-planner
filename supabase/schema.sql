@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS trips (
   start_date DATE NOT NULL,
   end_date DATE NOT NULL,
   creator_id UUID NOT NULL,
+  invite_code TEXT UNIQUE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
