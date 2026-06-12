@@ -12,6 +12,7 @@ type MemberListProps = {
   creatorId: string | null;
   onUpdateName: (name: string) => Promise<void>;
   onKickMember: (memberId: string) => Promise<void>;
+  compact?: boolean;
 };
 
 export function MemberList({
@@ -21,6 +22,7 @@ export function MemberList({
   creatorId,
   onUpdateName,
   onKickMember,
+  compact = false,
 }: MemberListProps) {
   const [editOpen, setEditOpen] = useState(false);
   const [kickingId, setKickingId] = useState<string | null>(null);
@@ -45,21 +47,36 @@ export function MemberList({
 
   return (
     <>
-      <div className="border-b border-zinc-200 px-4 py-3">
-        <div className="mb-2 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm font-semibold text-zinc-700">
-            <Users className="h-4 w-4" />
-            참여 중인 멤버 ({members.length})
+      <div className={compact ? "px-3 py-2" : "border-b border-zinc-200 px-4 py-3"}>
+        {!compact && (
+          <div className="mb-2 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-semibold text-zinc-700">
+              <Users className="h-4 w-4" />
+              참여 중인 멤버 ({members.length})
+            </div>
+            <button
+              type="button"
+              onClick={() => setEditOpen(true)}
+              className="flex items-center gap-1 text-xs text-blue-600 hover:underline"
+            >
+              <Pencil className="h-3 w-3" />
+              내 이름 변경
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => setEditOpen(true)}
-            className="flex items-center gap-1 text-xs text-blue-600 hover:underline"
-          >
-            <Pencil className="h-3 w-3" />
-            내 이름 변경
-          </button>
-        </div>
+        )}
+
+        {compact && (
+          <div className="mb-2 flex items-center justify-end">
+            <button
+              type="button"
+              onClick={() => setEditOpen(true)}
+              className="flex items-center gap-1 text-xs text-blue-600 hover:underline"
+            >
+              <Pencil className="h-3 w-3" />
+              내 이름 변경
+            </button>
+          </div>
+        )}
 
         <div className="flex flex-col gap-1.5">
           {members.length === 0 ? (
@@ -115,15 +132,16 @@ export function MemberList({
           )}
         </div>
 
-        {isCreator ? (
-          <p className="mt-2 text-[10px] text-zinc-400">
-            방장은 다른 멤버 옆 강퇴 버튼으로 보낼 수 있습니다.
-          </p>
-        ) : (
-          <p className="mt-2 text-[10px] text-zinc-400">
-            멤버 강퇴는 여행을 만든 방장만 할 수 있습니다.
-          </p>
-        )}
+        {!compact &&
+          (isCreator ? (
+            <p className="mt-2 text-[10px] text-zinc-400">
+              방장은 다른 멤버 옆 강퇴 버튼으로 보낼 수 있습니다.
+            </p>
+          ) : (
+            <p className="mt-2 text-[10px] text-zinc-400">
+              멤버 강퇴는 여행을 만든 방장만 할 수 있습니다.
+            </p>
+          ))}
       </div>
 
       <MemberNameModal

@@ -12,14 +12,11 @@ export function MobileMapPanelToggle({
   onFocusChange,
 }: MobileMapPanelToggleProps) {
   return (
-    <div
-      className="pointer-events-auto flex gap-1 rounded-full bg-white/95 p-1 shadow-lg ring-1 ring-zinc-200 backdrop-blur lg:hidden"
-      style={{ paddingBottom: "max(4px, env(safe-area-inset-bottom))" }}
-    >
+    <div className="pointer-events-auto flex gap-0.5 rounded-full bg-white p-0.5 shadow-md ring-1 ring-zinc-200">
       <button
         type="button"
         onClick={() => onFocusChange("map")}
-        className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium ${
+        className={`flex min-h-[36px] items-center gap-1 rounded-full px-2.5 py-1.5 text-[11px] font-medium ${
           focus === "map"
             ? "bg-blue-600 text-white"
             : "text-zinc-600 hover:bg-zinc-100"
@@ -31,7 +28,7 @@ export function MobileMapPanelToggle({
       <button
         type="button"
         onClick={() => onFocusChange("panel")}
-        className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium ${
+        className={`flex min-h-[36px] items-center gap-1 rounded-full px-2.5 py-1.5 text-[11px] font-medium ${
           focus === "panel"
             ? "bg-blue-600 text-white"
             : "text-zinc-600 hover:bg-zinc-100"

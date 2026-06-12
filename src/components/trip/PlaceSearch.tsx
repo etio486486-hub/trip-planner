@@ -9,9 +9,10 @@ import type { PlaceInput } from "@/types/database";
 
 type PlaceSearchProps = {
   onAdd: (place: PlaceInput) => Promise<void>;
+  compact?: boolean;
 };
 
-export function PlaceSearch({ onAdd }: PlaceSearchProps) {
+export function PlaceSearch({ onAdd, compact = false }: PlaceSearchProps) {
   const placesLib = useMapsLibrary("places");
   const inputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
@@ -73,7 +74,11 @@ export function PlaceSearch({ onAdd }: PlaceSearchProps) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="mx-3 mb-[max(0.75rem,env(safe-area-inset-bottom))] flex min-h-[44px] w-[calc(100%-1.5rem)] items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-blue-700 active:bg-blue-800"
+        className={`flex w-full items-center justify-center gap-2 bg-blue-600 font-medium text-white transition-colors hover:bg-blue-700 active:bg-blue-800 ${
+          compact
+            ? "min-h-[48px] px-4 py-3 text-sm"
+            : "mx-3 mb-3 min-h-[44px] w-[calc(100%-1.5rem)] rounded-lg px-4 py-3 text-sm"
+        }`}
       >
         <Plus className="h-4 w-4" />
         장소 추가

@@ -34,6 +34,31 @@ export interface Place {
   created_at?: string;
 }
 
+export interface ChecklistItem {
+  id: string;
+  trip_id: string;
+  category: string;
+  title: string;
+  is_checked: boolean;
+  sort_order: number;
+  created_by: string | null;
+  created_at?: string;
+}
+
+export interface Expense {
+  id: string;
+  trip_id: string;
+  title: string;
+  amount: number;
+  currency: string;
+  category: string;
+  expense_date: string;
+  paid_by_user_id: string | null;
+  paid_by_name: string | null;
+  memo: string | null;
+  created_at?: string;
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -112,6 +137,60 @@ export interface Database {
           latitude?: number;
           longitude?: number;
           visit_order?: number;
+          memo?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      checklist_items: {
+        Row: ChecklistItem;
+        Insert: {
+          id?: string;
+          trip_id: string;
+          category?: string;
+          title: string;
+          is_checked?: boolean;
+          sort_order?: number;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          trip_id?: string;
+          category?: string;
+          title?: string;
+          is_checked?: boolean;
+          sort_order?: number;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      expenses: {
+        Row: Expense;
+        Insert: {
+          id?: string;
+          trip_id: string;
+          title: string;
+          amount: number;
+          currency?: string;
+          category?: string;
+          expense_date?: string;
+          paid_by_user_id?: string | null;
+          paid_by_name?: string | null;
+          memo?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          trip_id?: string;
+          title?: string;
+          amount?: number;
+          currency?: string;
+          category?: string;
+          expense_date?: string;
+          paid_by_user_id?: string | null;
+          paid_by_name?: string | null;
           memo?: string | null;
           created_at?: string;
         };

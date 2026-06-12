@@ -47,21 +47,58 @@ CREATE INDEX IF NOT EXISTS idx_trip_members_trip ON trip_members(trip_id);
 CREATE INDEX IF NOT EXISTS idx_daily_plans_trip ON daily_plans(trip_id);
 CREATE INDEX IF NOT EXISTS idx_places_daily_plan ON places(daily_plan_id);
 
+-- checklist_items: 여행 준비 체크리스트
+CREATE TABLE IF NOT EXISTS checklist_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  trip_id UUID NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+  category TEXT NOT NULL DEFAULT '기타',
+  title TEXT NOT NULL,
+  is_checked BOOLEAN NOT NULL DEFAULT false,
+  sort_order INT NOT NULL DEFAULT 0,
+  created_by UUID,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- expenses: 여행 가계부
+CREATE TABLE IF NOT EXISTS expenses (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  trip_id UUID NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  amount NUMERIC(12, 2) NOT NULL CHECK (amount >= 0),
+  currency TEXT NOT NULL DEFAULT 'JPY',
+  category TEXT NOT NULL DEFAULT '기타',
+  expense_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  paid_by_user_id UUID,
+  paid_by_name TEXT,
+  memo TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_checklist_items_trip ON checklist_items(trip_id);
+CREATE INDEX IF NOT EXISTS idx_expenses_trip ON expenses(trip_id);
+CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(trip_id, expense_date);
+
 -- Row Level Security (개발용 — 프로덕션에서는 auth 기반 정책으로 교체)
 ALTER TABLE trips ENABLE ROW LEVEL SECURITY;
 ALTER TABLE trip_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE daily_plans ENABLE ROW LEVEL SECURITY;
 ALTER TABLE places ENABLE ROW LEVEL SECURITY;
+ALTER TABLE checklist_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "trips_all" ON trips FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "trip_members_all" ON trip_members FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "daily_plans_all" ON daily_plans FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "places_all" ON places FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "checklist_items_all" ON checklist_items FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "expenses_all" ON expenses FOR ALL USING (true) WITH CHECK (true);
 
 -- Realtime 활성화
 ALTER PUBLICATION supabase_realtime ADD TABLE places;
 ALTER PUBLICATION supabase_realtime ADD TABLE daily_plans;
 ALTER PUBLICATION supabase_realtime ADD TABLE trip_members;
+ALTER PUBLICATION supabase_realtime ADD TABLE checklist_items;
+ALTER PUBLICATION supabase_realtime ADD TABLE expenses;
 
 -- 샘플 데이터 (선택)
 -- INSERT INTO trips (title, start_date, end_date, creator_id)

@@ -11,9 +11,10 @@ type TripHeaderProps = {
     start_date: string;
     end_date: string;
   }) => Promise<void>;
+  compact?: boolean;
 };
 
-export function TripHeader({ trip, onUpdate }: TripHeaderProps) {
+export function TripHeader({ trip, onUpdate, compact = false }: TripHeaderProps) {
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -63,14 +64,22 @@ export function TripHeader({ trip, onUpdate }: TripHeaderProps) {
 
   if (!trip) {
     return (
-      <div className="border-b border-zinc-200 px-4 py-4">
-        <h1 className="text-lg font-bold text-zinc-900">여행 계획</h1>
+      <div
+        className={`border-b border-zinc-200 ${compact ? "px-3 py-2" : "px-4 py-4"}`}
+      >
+        <h1
+          className={`font-bold text-zinc-900 ${compact ? "text-base" : "text-lg"}`}
+        >
+          여행 계획
+        </h1>
       </div>
     );
   }
 
   return (
-    <div className="border-b border-zinc-200 px-4 py-4">
+    <div
+      className={`shrink-0 border-b border-zinc-200 ${compact ? "px-3 py-2" : "px-4 py-4"}`}
+    >
       {editing ? (
         <div className="space-y-3">
           <input
@@ -125,10 +134,12 @@ export function TripHeader({ trip, onUpdate }: TripHeaderProps) {
       ) : (
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-lg font-bold text-zinc-900">
+            <h1
+              className={`truncate font-bold text-zinc-900 ${compact ? "text-base" : "text-lg"}`}
+            >
               {trip.title}
             </h1>
-            <p className="mt-0.5 text-xs text-zinc-600">
+            <p className={`text-zinc-600 ${compact ? "text-[11px]" : "mt-0.5 text-xs"}`}>
               {trip.start_date} ~ {trip.end_date}
             </p>
           </div>

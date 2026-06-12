@@ -9,6 +9,7 @@ type DayTabsProps = {
   onSelectDay: (dayNumber: number) => void;
   onAddDay: () => void;
   onRemoveDay: (dayNumber: number) => void;
+  compact?: boolean;
 };
 
 export function DayTabs({
@@ -17,17 +18,24 @@ export function DayTabs({
   onSelectDay,
   onAddDay,
   onRemoveDay,
+  compact = false,
 }: DayTabsProps) {
   const canRemove = dailyPlans.length > 1;
 
   return (
-    <div className="flex items-center gap-1 overflow-x-auto border-b border-zinc-200 px-3 py-2">
+    <div
+      className={`flex items-center gap-1 overflow-x-auto border-b border-zinc-200 ${
+        compact ? "px-2 py-1.5" : "px-3 py-2"
+      }`}
+    >
       {dailyPlans.map((plan) => (
         <button
           key={`day-${plan.day_number}-${plan.id}`}
           type="button"
           onClick={() => onSelectDay(plan.day_number)}
-          className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+          className={`shrink-0 rounded-lg font-medium transition-colors ${
+            compact ? "px-2.5 py-1 text-xs" : "px-3 py-1.5 text-sm"
+          } ${
             selectedDayNumber === plan.day_number
               ? "bg-blue-600 text-white"
               : "bg-zinc-100 text-zinc-800 hover:bg-zinc-200"

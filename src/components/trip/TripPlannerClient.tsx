@@ -9,6 +9,8 @@ import {
   isSegmentVisible,
   useTripRouteLegs,
 } from "@/hooks/useTripRouteLegs";
+import { useTripChecklist } from "@/hooks/useTripChecklist";
+import { useTripExpenses } from "@/hooks/useTripExpenses";
 import { useTripRealtime } from "@/hooks/useTripRealtime";
 import type { RouteViewMode } from "@/lib/maps/segment-colors";
 import { DeviceIdentityGuard } from "./DeviceIdentityGuard";
@@ -48,8 +50,8 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
   const handleMobileFocusChange = useCallback(
     (focus: "map" | "panel") => {
       setMobileFocus(focus);
-      if (focus === "map") resizeMobilePanel(28);
-      else resizeMobilePanel(72);
+      if (focus === "map") resizeMobilePanel(18);
+      else resizeMobilePanel(82);
     },
     [resizeMobilePanel]
   );
@@ -76,6 +78,8 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
   } = useTripRealtime({ tripId, selectedDayNumber });
 
   const { legs: routeLegs, loading: routesLoading } = useTripRouteLegs(places);
+  const checklist = useTripChecklist(tripId, currentUserId);
+  const expenses = useTripExpenses(tripId);
   const routeSegments = useMemo(
     () => buildMapSegments(routeLegs, places, segmentModes),
     [routeLegs, places, segmentModes]
@@ -208,6 +212,8 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
     onShowAllSegments: handleShowAllSegments,
     sidebarTab,
     onSidebarTabChange: setSidebarTab,
+    checklist,
+    expenses,
   };
 
   const mapProps = {
@@ -223,7 +229,7 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
         open={needsNameSetup}
         onSave={joinTripAsMember}
       />
-      <div className="flex h-dvh w-full flex-col">
+      <div className="fixed inset-0 flex h-dvh w-full flex-col pt-[env(safe-area-inset-top)] lg:static lg:pt-0">
         {error && (
           <div className="flex items-center gap-2 bg-red-50 px-4 py-2 text-sm text-red-700">
             <AlertCircle className="h-4 w-4 shrink-0" />
@@ -239,30 +245,33 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
             <>
               <main
                 className="relative min-h-0 w-full"
-                style={{ height: `${mapHeightPercent}%` }}
+                style={{
+                  flex: `0 0 ${mapHeightPercent}%`,
+                  minHeight: "18%",
+                  maxHeight: "82%",
+                }}
               >
                 <TripMap {...mapProps} />
-                <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center">
+              </main>
+              <div className="relative z-20 shrink-0">
+                <PanelResizeHandle
+                  direction="vertical"
+                  onResize={(delta) => {
+                    if (typeof window === "undefined") return;
+                    const deltaPercent = (delta / window.innerHeight) * 100;
+                    resizeMobilePanel(mobilePanelPercent + deltaPercent);
+                    setMobileFocus("panel");
+                  }}
+                />
+                <div className="pointer-events-none absolute inset-x-0 top-1/2 flex -translate-y-1/2 justify-center">
                   <MobileMapPanelToggle
                     focus={mobileFocus}
                     onFocusChange={handleMobileFocusChange}
                   />
                 </div>
-              </main>
-              <PanelResizeHandle
-                direction="vertical"
-                onResize={(delta) => {
-                  if (typeof window === "undefined") return;
-                  const deltaPercent = (delta / window.innerHeight) * 100;
-                  resizeMobilePanel(mobilePanelPercent + deltaPercent);
-                  setMobileFocus("panel");
-                }}
-              />
-              <div
-                className="min-h-0 w-full overflow-hidden"
-                style={{ height: `${mobilePanelPercent}%` }}
-              >
-                <TripSidebar {...sidebarProps} />
+              </div>
+              <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
+                <TripSidebar {...sidebarProps} isMobile />
               </div>
             </>
           ) : (

@@ -5,9 +5,10 @@ import { Check, Copy, Link2, UserPlus } from "lucide-react";
 
 type InviteMembersProps = {
   tripId: string;
+  compact?: boolean;
 };
 
-export function InviteMembers({ tripId }: InviteMembersProps) {
+export function InviteMembers({ tripId, compact = false }: InviteMembersProps) {
   const [copied, setCopied] = useState(false);
   const [showLink, setShowLink] = useState(false);
 
@@ -40,25 +41,29 @@ export function InviteMembers({ tripId }: InviteMembersProps) {
   };
 
   return (
-    <div className="border-b border-zinc-200 px-4 py-3">
-      <div className="mb-2 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm font-semibold text-zinc-700">
-          <UserPlus className="h-4 w-4" />
-          멤버 초대
+    <div className={compact ? "px-3 py-2" : "border-b border-zinc-200 px-4 py-3"}>
+      {!compact && (
+        <div className="mb-2 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm font-semibold text-zinc-700">
+            <UserPlus className="h-4 w-4" />
+            멤버 초대
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowLink((v) => !v)}
+            className="text-xs text-blue-600 hover:underline"
+          >
+            {showLink ? "숨기기" : "링크 보기"}
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowLink((v) => !v)}
-          className="text-xs text-blue-600 hover:underline"
-        >
-          {showLink ? "숨기기" : "링크 보기"}
-        </button>
-      </div>
+      )}
 
-      <p className="mb-2 text-xs leading-relaxed text-zinc-500">
-        아래 링크를 카카오톡·문자 등으로 공유하면 친구가 같은 여행에
-        참여합니다. 링크를 연 사람은 자동으로 멤버로 추가됩니다.
-      </p>
+      {!compact && (
+        <p className="mb-2 text-xs leading-relaxed text-zinc-500">
+          아래 링크를 카카오톡·문자 등으로 공유하면 친구가 같은 여행에
+          참여합니다. 링크를 연 사람은 자동으로 멤버로 추가됩니다.
+        </p>
+      )}
 
       {isPreviewUrl && !productionUrl && (
         <p className="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs text-amber-800">
@@ -80,7 +85,9 @@ export function InviteMembers({ tripId }: InviteMembersProps) {
       <button
         type="button"
         onClick={copyLink}
-        className="flex w-full items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100"
+        className={`flex w-full items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 font-medium text-blue-700 transition-colors hover:bg-blue-100 active:bg-blue-200 ${
+          compact ? "min-h-[40px] px-3 py-2 text-xs" : "px-3 py-2 text-sm"
+        }`}
       >
         {copied ? (
           <>

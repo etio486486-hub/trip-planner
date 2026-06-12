@@ -8,8 +8,8 @@ export const PANEL_DEFAULTS = {
   sidebarWidth: 380,
   minSidebarWidth: 300,
   maxSidebarWidth: 560,
-  mobilePanelPercent: 48,
-  minMobilePanelPercent: 28,
+  mobilePanelPercent: 82,
+  minMobilePanelPercent: 18,
   maxMobilePanelPercent: 88,
 } as const;
 
