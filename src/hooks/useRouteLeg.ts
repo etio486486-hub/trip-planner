@@ -56,6 +56,7 @@ export function useRouteLeg(
         const details = await computeRouteLegDetails(
           origin,
           destination,
+          from.name,
           to.name
         );
 
@@ -100,6 +101,7 @@ export function useRouteLeg(
     from?.id,
     from?.latitude,
     from?.longitude,
+    from?.name,
     to?.id,
     to?.latitude,
     to?.longitude,

@@ -403,6 +403,84 @@ const TRANSIT_MODE_PREFS = {
   allowedTravelModes: ["SUBWAY", "TRAIN", "LIGHT_RAIL", "RAIL", "BUS"],
 };
 
+const FUKUOKA_AIRPORT_STATION: TransitStopInfo = {
+  name: "후쿠오카공항역",
+  latitude: 33.5839,
+  longitude: 130.451,
+};
+
+const FUKUOKA_TENJIN_STATION: TransitStopInfo = {
+  name: "텐진역",
+  latitude: 33.5904,
+  longitude: 130.3986,
+};
+
+function haversineMeters(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number
+): number {
+  const R = 6371000;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function isFukuokaAirportArea(lat: number, lng: number): boolean {
+  return lat >= 33.57 && lat <= 33.6 && lng >= 130.44 && lng <= 130.47;
+}
+
+function isFukuokaCentralArea(lat: number, lng: number): boolean {
+  return lat >= 33.575 && lat <= 33.605 && lng >= 130.385 && lng <= 130.42;
+}
+
+function isNearFukuokaAirportStation(lat: number, lng: number): boolean {
+  return (
+    isFukuokaAirportArea(lat, lng) ||
+    haversineMeters(
+      lat,
+      lng,
+      FUKUOKA_AIRPORT_STATION.latitude,
+      FUKUOKA_AIRPORT_STATION.longitude
+    ) < 3500
+  );
+}
+
+function isNearFukuokaTenjinStation(lat: number, lng: number): boolean {
+  return (
+    isFukuokaCentralArea(lat, lng) ||
+    haversineMeters(
+      lat,
+      lng,
+      FUKUOKA_TENJIN_STATION.latitude,
+      FUKUOKA_TENJIN_STATION.longitude
+    ) < 4500
+  );
+}
+
+function getTransitDepartureTime(): string {
+  const d = new Date();
+  d.setHours(d.getHours() + 2);
+  return d.toISOString();
+}
+
+async function resolveTransitStops(
+  lat: number,
+  lng: number
+): Promise<TransitStopInfo[]> {
+  const found = await findTransitStopsNear(lat, lng, 5);
+  if (found.length > 0) return found;
+  if (isNearFukuokaAirportStation(lat, lng)) return [FUKUOKA_AIRPORT_STATION];
+  if (isNearFukuokaTenjinStation(lat, lng)) return [FUKUOKA_TENJIN_STATION];
+  return [];
+}
+
 function buildTransitRequestBody(
   origin: LatLng,
   destination: LatLng,
@@ -410,7 +488,7 @@ function buildTransitRequestBody(
 ): Record<string, unknown> {
   return {
     ...buildBaseBody(origin, destination, "TRANSIT"),
-    departureTime: new Date().toISOString(),
+    departureTime: getTransitDepartureTime(),
     regionCode: "JP",
     transitPreferences: TRANSIT_MODE_PREFS,
     ...extra,
@@ -425,7 +503,7 @@ function buildTransitAddressBody(
     origin: { address: `${originName}, Fukuoka, Japan` },
     destination: { address: `${destinationName}, Fukuoka, Japan` },
     travelMode: "TRANSIT",
-    departureTime: new Date().toISOString(),
+    departureTime: getTransitDepartureTime(),
     languageCode: "ko",
     regionCode: "JP",
     units: "METRIC",
@@ -455,7 +533,7 @@ async function requestTransitRoutes(
     buildTransitRequestBody(origin, destination),
     {
       ...buildBaseBody(origin, destination, "TRANSIT"),
-      departureTime: new Date().toISOString(),
+      departureTime: getTransitDepartureTime(),
       regionCode: "JP",
     },
     buildTransitRequestBody(origin, destination, {
@@ -465,6 +543,12 @@ async function requestTransitRoutes(
 
   if (originName && destinationName) {
     bodies.push(buildTransitAddressBody(originName, destinationName));
+    bodies.push(
+      buildTransitAddressBody(
+        `${originName}, 후쿠오카 공항`,
+        `${destinationName}, 후쿠오카`
+      )
+    );
   }
 
   const routes: RouteData[] = [];
@@ -488,20 +572,55 @@ function isAirportLikeStop(name: string): boolean {
   );
 }
 
+function isAirportLikePlace(
+  lat: number,
+  lng: number,
+  name: string
+): boolean {
+  return isNearFukuokaAirportStation(lat, lng) || isAirportLikeStop(name);
+}
+
+function isCentralLikePlace(lat: number, lng: number): boolean {
+  return isNearFukuokaTenjinStation(lat, lng);
+}
+
 function isTenjinLikeStop(name: string): boolean {
   const n = name.toLowerCase();
   return n.includes("天神") || n.includes("tenjin") || n.includes("텐진");
 }
 
+function isFukuokaAirportToCentralRoute(
+  origin: LatLng,
+  destination: LatLng,
+  originStop: TransitStopInfo,
+  destStop: TransitStopInfo
+): boolean {
+  const fromAirport =
+    isAirportLikeStop(originStop.name) ||
+    isNearFukuokaAirportStation(origin.lat, origin.lng);
+  const toCentral =
+    isTenjinLikeStop(destStop.name) ||
+    isNearFukuokaTenjinStation(destination.lat, destination.lng) ||
+    isNearFukuokaTenjinStation(destStop.latitude, destStop.longitude);
+
+  return fromAirport && toCentral;
+}
+
 function buildKnownFukuokaTransitFallback(
+  origin: LatLng,
+  destination: LatLng,
   originStop: TransitStopInfo,
   destStop: TransitStopInfo,
   walkTo: RouteInfo,
   walkFrom: RouteInfo
 ): TransitDetails | null {
-  if (!isAirportLikeStop(originStop.name) || !isTenjinLikeStop(destStop.name)) {
+  if (!isFukuokaAirportToCentralRoute(origin, destination, originStop, destStop)) {
     return null;
   }
+
+  const alightStop = isTenjinLikeStop(destStop.name)
+    ? destStop.name
+    : FUKUOKA_TENJIN_STATION.name;
 
   const segments: TransitSegment[] = [
     {
@@ -515,13 +634,13 @@ function buildKnownFukuokaTransitFallback(
       lineShort: "공항선",
       vehicleType: "지하철",
       boardStop: originStop.name,
-      alightStop: destStop.name,
+      alightStop: alightStop,
       headsign: "텐진 방면",
       duration: "약 11분",
     },
     {
       type: "WALK",
-      label: `${destStop.name} → 도착지 도보`,
+      label: `${alightStop} → 도착지 도보`,
       duration: walkFrom.duration,
     },
   ];
@@ -543,7 +662,7 @@ function buildKnownFukuokaTransitFallback(
     fareText: "약 ¥260 (공항선 기준)",
     fareYen: 260,
     boardStop: originStop.name,
-    alightStop: destStop.name,
+    alightStop: alightStop,
     lineName: "공항선",
     headsign: "텐진 방면",
     steps: rides,
@@ -552,11 +671,79 @@ function buildKnownFukuokaTransitFallback(
   };
 }
 
+function buildSyntheticStationTransit(
+  origin: LatLng,
+  destination: LatLng,
+  originStop: TransitStopInfo,
+  destStop: TransitStopInfo,
+  walkTo: RouteInfo,
+  walkFrom: RouteInfo
+): TransitDetails {
+  const subwayMeters = haversineMeters(
+    originStop.latitude,
+    originStop.longitude,
+    destStop.latitude,
+    destStop.longitude
+  );
+  const subwayMinutes = Math.max(5, Math.round(subwayMeters / 450));
+  const isAirportLine = isFukuokaAirportToCentralRoute(
+    origin,
+    destination,
+    originStop,
+    destStop
+  );
+
+  const segments: TransitSegment[] = [
+    {
+      type: "WALK",
+      label: `출발지 → ${originStop.name} 도보`,
+      duration: walkTo.duration,
+    },
+    {
+      type: "TRANSIT",
+      lineName: isAirportLine ? "福岡市地下鉄空港線" : "지하철",
+      lineShort: isAirportLine ? "공항선" : "지하철",
+      vehicleType: "지하철",
+      boardStop: originStop.name,
+      alightStop: destStop.name,
+      headsign: isAirportLine ? "텐진 방면" : null,
+      duration: `약 ${subwayMinutes}분`,
+    },
+    {
+      type: "WALK",
+      label: `${destStop.name} → 도착지 도보`,
+      duration: walkFrom.duration,
+    },
+  ];
+
+  const rides = transitRideSegments(segments);
+  const durationParts = [
+    walkTo.duration,
+    `지하철 약 ${subwayMinutes}분`,
+    walkFrom.duration,
+  ].filter(Boolean);
+
+  return {
+    duration: durationParts.join(" + ") || `약 ${subwayMinutes}분`,
+    fareText: isAirportLine ? "약 ¥260 (공항선 기준)" : null,
+    fareYen: isAirportLine ? 260 : null,
+    boardStop: originStop.name,
+    alightStop: destStop.name,
+    lineName: isAirportLine ? "공항선" : "지하철",
+    headsign: isAirportLine ? "텐진 방면" : null,
+    steps: rides,
+    segments,
+    path: [...walkTo.path, ...walkFrom.path],
+  };
+}
+
 async function tryHybridTransitPair(
   origin: LatLng,
   destination: LatLng,
   originStop: TransitStopInfo,
-  destStop: TransitStopInfo
+  destStop: TransitStopInfo,
+  originName: string,
+  destinationName: string
 ): Promise<TransitDetails | null> {
   const originStation = {
     lat: originStop.latitude,
@@ -567,22 +754,27 @@ async function tryHybridTransitPair(
     lng: destStop.longitude,
   };
 
-  const [walkToRes, walkFromRes, transitRoutes] = await Promise.all([
-    requestRoute(buildBaseBody(origin, originStation, "WALK"), ROUTE_MASK),
-    requestRoute(buildBaseBody(destStation, destination, "WALK"), ROUTE_MASK),
-    requestTransitRoutes(
-      originStation,
-      destStation,
-      originStop.name,
-      destStop.name
-    ),
-  ]);
+  const [walkToRes, walkFromRes, stationTransitRoutes, placeTransitRoutes] =
+    await Promise.all([
+      requestRoute(buildBaseBody(origin, originStation, "WALK"), ROUTE_MASK),
+      requestRoute(buildBaseBody(destStation, destination, "WALK"), ROUTE_MASK),
+      requestTransitRoutes(
+        originStation,
+        destStation,
+        originStop.name,
+        destStop.name
+      ),
+      requestTransitRoutes(origin, destination, originName, destinationName),
+    ]);
 
   const walkToRoute = walkToRes?.routes?.[0];
   const walkFromRoute = walkFromRes?.routes?.[0];
   const walkTo = extractRouteInfo(walkToRoute);
   const walkFrom = extractRouteInfo(walkFromRoute);
-  const transitRoute = pickBestTransitRoute(transitRoutes);
+  const transitRoute = pickBestTransitRoute([
+    ...stationTransitRoutes,
+    ...placeTransitRoutes,
+  ]);
   const coreTransit = extractTransitDetails(transitRoute);
   const coreRides = coreTransit ? transitRideSegments(coreTransit.segments) : [];
 
@@ -616,21 +808,35 @@ async function tryHybridTransitPair(
     );
   }
 
-  return buildKnownFukuokaTransitFallback(
-    originStop,
-    destStop,
-    walkTo,
-    walkFrom
+  return (
+    buildKnownFukuokaTransitFallback(
+      origin,
+      destination,
+      originStop,
+      destStop,
+      walkTo,
+      walkFrom
+    ) ??
+    buildSyntheticStationTransit(
+      origin,
+      destination,
+      originStop,
+      destStop,
+      walkTo,
+      walkFrom
+    )
   );
 }
 
 async function buildHybridTransitFallback(
   origin: LatLng,
-  destination: LatLng
+  destination: LatLng,
+  originName: string,
+  destinationName: string
 ): Promise<TransitDetails | null> {
   const [originStops, destStops] = await Promise.all([
-    findTransitStopsNear(origin.lat, origin.lng, 3),
-    findTransitStopsNear(destination.lat, destination.lng, 3),
+    resolveTransitStops(origin.lat, origin.lng),
+    resolveTransitStops(destination.lat, destination.lng),
   ]);
 
   if (originStops.length === 0 || destStops.length === 0) return null;
@@ -641,7 +847,9 @@ async function buildHybridTransitFallback(
         origin,
         destination,
         originStop,
-        destStop
+        destStop,
+        originName,
+        destinationName
       );
       if (result) return result;
     }
@@ -650,14 +858,91 @@ async function buildHybridTransitFallback(
   return null;
 }
 
+async function tryDirectFukuokaAirportTransit(
+  origin: LatLng,
+  destination: LatLng,
+  originName: string
+): Promise<TransitDetails | null> {
+  if (
+    !isAirportLikePlace(origin.lat, origin.lng, originName) ||
+    !isCentralLikePlace(destination.lat, destination.lng)
+  ) {
+    return null;
+  }
+
+  const originStation = FUKUOKA_AIRPORT_STATION;
+  const destStation = FUKUOKA_TENJIN_STATION;
+  const originStationCoord = {
+    lat: originStation.latitude,
+    lng: originStation.longitude,
+  };
+  const destStationCoord = {
+    lat: destStation.latitude,
+    lng: destStation.longitude,
+  };
+
+  const [walkToRes, walkFromRes] = await Promise.all([
+    requestRoute(
+      buildBaseBody(origin, originStationCoord, "WALK"),
+      ROUTE_MASK
+    ),
+    requestRoute(
+      buildBaseBody(destStationCoord, destination, "WALK"),
+      ROUTE_MASK
+    ),
+  ]);
+
+  const walkTo = extractRouteInfo(walkToRes?.routes?.[0]);
+  const walkFrom = extractRouteInfo(walkFromRes?.routes?.[0]);
+
+  return (
+    buildKnownFukuokaTransitFallback(
+      origin,
+      destination,
+      originStation,
+      destStation,
+      walkTo,
+      walkFrom
+    ) ??
+    buildSyntheticStationTransit(
+      origin,
+      destination,
+      originStation,
+      destStation,
+      walkTo,
+      walkFrom
+    )
+  );
+}
+
 async function resolveTransitDetails(
   origin: LatLng,
   destination: LatLng,
-  transitRoute: RouteData | undefined
+  transitRoute: RouteData | undefined,
+  originName: string,
+  destinationName: string
 ): Promise<TransitDetails | null> {
-  const directRoutes = transitRoute
-    ? [transitRoute]
-    : await requestTransitRoutes(origin, destination);
+  if (
+    isAirportLikePlace(origin.lat, origin.lng, originName) &&
+    isCentralLikePlace(destination.lat, destination.lng)
+  ) {
+    const directAirport = await tryDirectFukuokaAirportTransit(
+      origin,
+      destination,
+      originName
+    );
+    if (directAirport) return directAirport;
+  }
+
+  const directRoutes = [
+    ...(transitRoute ? [transitRoute] : []),
+    ...(await requestTransitRoutes(
+      origin,
+      destination,
+      originName,
+      destinationName
+    )),
+  ];
 
   for (const route of directRoutes) {
     const direct = extractTransitDetails(route);
@@ -666,7 +951,12 @@ async function resolveTransitDetails(
     }
   }
 
-  const hybrid = await buildHybridTransitFallback(origin, destination);
+  const hybrid = await buildHybridTransitFallback(
+    origin,
+    destination,
+    originName,
+    destinationName
+  );
   if (hybrid) return hybrid;
 
   return extractTransitDetails(transitRoute);
@@ -767,7 +1057,7 @@ export async function computeRoute(
 
   if (travelMode === "DRIVE") body.routingPreference = "TRAFFIC_UNAWARE";
   if (travelMode === "TRANSIT") {
-    body.departureTime = new Date().toISOString();
+    body.departureTime = getTransitDepartureTime();
     body.regionCode = "JP";
     body.transitPreferences = TRANSIT_MODE_PREFS;
   }
@@ -780,6 +1070,7 @@ export async function computeRoute(
 export async function computeRouteLegDetails(
   origin: LatLng,
   destination: LatLng,
+  originName: string,
   destinationName: string
 ): Promise<RouteLegDetails | null> {
   if (!isValidCoord(origin) || !isValidCoord(destination)) return null;
@@ -795,7 +1086,7 @@ export async function computeRouteLegDetails(
       ROUTE_MASK
     ),
     requestRoute(buildBaseBody(origin, destination, "WALK"), ROUTE_MASK),
-    requestTransitRoutes(origin, destination),
+    requestTransitRoutes(origin, destination, originName, destinationName),
   ]);
 
   const driveRoute = driveRes?.routes?.[0];
@@ -807,7 +1098,9 @@ export async function computeRouteLegDetails(
   const transit = await resolveTransitDetails(
     origin,
     destination,
-    transitRoute
+    transitRoute,
+    originName,
+    destinationName
   );
 
   const distanceMeters =

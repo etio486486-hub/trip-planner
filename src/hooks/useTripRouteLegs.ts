@@ -154,6 +154,7 @@ export function useTripRouteLegs(places: Place[]) {
             const details = await computeRouteLegDetails(
               { lat: from.latitude, lng: from.longitude },
               { lat: to.latitude, lng: to.longitude },
+              from.name,
               to.name
             );
 
