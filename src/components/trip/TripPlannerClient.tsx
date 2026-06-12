@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { AlertCircle } from "lucide-react";
+import { useTripRouteMap } from "@/hooks/useTripRouteMap";
 import { useTripRealtime } from "@/hooks/useTripRealtime";
+import type { RouteViewMode } from "@/lib/maps/segment-colors";
 import { DeviceIdentityGuard } from "./DeviceIdentityGuard";
 import { MapsProvider } from "./MapsProvider";
 import { TripMap } from "./TripMap";
@@ -16,6 +18,7 @@ type TripPlannerClientProps = {
 function TripPlannerContent({ tripId }: TripPlannerClientProps) {
   const [selectedDayNumber, setSelectedDayNumber] = useState(1);
   const [focusedPlaceId, setFocusedPlaceId] = useState<string | null>(null);
+  const [routeViewMode, setRouteViewMode] = useState<RouteViewMode>("DRIVE");
 
   const {
     trip,
@@ -37,6 +40,11 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
     kickMember,
     currentUserId,
   } = useTripRealtime({ tripId, selectedDayNumber });
+
+  const { segments: routeSegments, loading: routesLoading } = useTripRouteMap(
+    places,
+    routeViewMode
+  );
 
   const handleDeletePlace = async (id: string) => {
     try {
@@ -127,9 +135,18 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
             creatorId={trip?.creator_id ?? null}
             onUpdateDisplayName={updateDisplayName}
             onKickMember={handleKickMember}
+            routeViewMode={routeViewMode}
+            onRouteViewModeChange={setRouteViewMode}
           />
           <main className="relative flex-1">
-            <TripMap places={places} focusedPlaceId={focusedPlaceId} />
+            <TripMap
+              places={places}
+              focusedPlaceId={focusedPlaceId}
+              routeSegments={routeSegments}
+              routeViewMode={routeViewMode}
+              onRouteViewModeChange={setRouteViewMode}
+              routesLoading={routesLoading}
+            />
           </main>
         </div>
       </div>

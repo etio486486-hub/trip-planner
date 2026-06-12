@@ -19,6 +19,7 @@ export type RouteLegResult = RouteLegDetails & {
 const EMPTY: RouteLegResult = {
   distance: null,
   distanceMeters: null,
+  paths: { walk: [], drive: [], transit: [] },
   taxi: {
     duration: null,
     fareYen: null,

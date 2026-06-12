@@ -7,6 +7,7 @@ import { InviteMembers } from "./InviteMembers";
 import { MemberList } from "./MemberList";
 import { PlaceList } from "./PlaceList";
 import { PlaceSearch } from "./PlaceSearch";
+import type { RouteViewMode } from "@/lib/maps/segment-colors";
 import type { DailyPlan, Place, PresenceUser, Trip, TripMember } from "@/types/database";
 import type { PlaceInput } from "@/types/database";
 
@@ -36,6 +37,8 @@ type TripSidebarProps = {
   creatorId: string | null;
   onUpdateDisplayName: (name: string) => Promise<void>;
   onKickMember: (memberId: string) => Promise<void>;
+  routeViewMode: RouteViewMode;
+  onRouteViewModeChange: (mode: RouteViewMode) => void;
 };
 
 export function TripSidebar({
@@ -60,6 +63,8 @@ export function TripSidebar({
   creatorId,
   onUpdateDisplayName,
   onKickMember,
+  routeViewMode,
+  onRouteViewModeChange,
 }: TripSidebarProps) {
   return (
     <aside className="flex h-full w-[380px] shrink-0 flex-col border-r border-zinc-200 bg-white">
@@ -96,6 +101,8 @@ export function TripSidebar({
               onSelectPlace={onSelectPlace}
               onReorder={onReorderPlaces}
               onDelete={onDeletePlace}
+              routeViewMode={routeViewMode}
+              onRouteViewModeChange={onRouteViewModeChange}
             />
           </div>
         )}

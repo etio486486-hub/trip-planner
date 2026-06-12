@@ -8,10 +8,13 @@ import {
   Loader2,
   MessageCircle,
   Train,
-  Utensils,
 } from "lucide-react";
 import { useRouteLeg } from "@/hooks/useRouteLeg";
-import { useRestaurantInfo } from "@/hooks/useRestaurantInfo";
+import {
+  getSegmentColor,
+  ROUTE_MODE_LABELS,
+  type RouteViewMode,
+} from "@/lib/maps/segment-colors";
 import type { Place } from "@/types/database";
 
 type RouteSegmentInfoProps = {
@@ -19,6 +22,8 @@ type RouteSegmentInfoProps = {
   to: Place;
   fromIndex: number;
   toIndex: number;
+  routeViewMode: RouteViewMode;
+  onRouteViewModeChange: (mode: RouteViewMode) => void;
 };
 
 function InfoRow({ label, value }: { label: string; value: string | null }) {
@@ -54,41 +59,10 @@ function CopyablePhrase({ text }: { text: string }) {
         type="button"
         onClick={copy}
         className="shrink-0 rounded p-1 text-amber-700 hover:bg-amber-100"
-        title="복사"
       >
         <Copy className="h-3 w-3" />
       </button>
-      {copied && (
-        <span className="text-[10px] text-amber-600">복사됨</span>
-      )}
-    </div>
-  );
-}
-
-function RestaurantBlock({ place }: { place: Place }) {
-  const { info, loading } = useRestaurantInfo(place.google_place_id);
-
-  if (loading) {
-    return (
-      <p className="text-[11px] text-zinc-400">식당 정보 불러오는 중...</p>
-    );
-  }
-
-  if (!info) return null;
-
-  return (
-    <div className="rounded-md bg-orange-50 px-2.5 py-2 ring-1 ring-orange-100">
-      <div className="mb-1 flex items-center gap-1 text-[11px] font-medium text-orange-800">
-        <Utensils className="h-3 w-3" />
-        {place.name} 식당 정보
-      </div>
-      <InfoRow label="가격대:" value={info.priceLevelLabel} />
-      <InfoRow label="예상 메뉴 가격:" value={info.priceRangeText} />
-      {!info.priceRangeText && !info.priceLevelLabel && (
-        <p className="text-[11px] text-orange-700/80">
-          구글에 등록된 메뉴 가격이 없습니다. 매장 메뉴판을 확인하세요.
-        </p>
-      )}
+      {copied && <span className="text-[10px] text-amber-600">복사됨</span>}
     </div>
   );
 }
@@ -104,17 +78,42 @@ export function RouteSegmentInfo({
   to,
   fromIndex,
   toIndex,
+  routeViewMode,
+  onRouteViewModeChange,
 }: RouteSegmentInfoProps) {
   const { distance, taxi, transit, walking, loading, error } = useRouteLeg(
     from,
     to
   );
 
+  const segmentColor = getSegmentColor(fromIndex);
+
   return (
-    <div className="mx-1 rounded-lg border border-dashed border-zinc-200 bg-zinc-50 px-3 py-2.5">
-      <p className="mb-2 text-[11px] font-medium text-zinc-500">
-        {fromIndex + 1}번 → {toIndex + 1}번 이동
-      </p>
+    <div
+      className="mx-1 rounded-lg border border-dashed bg-zinc-50 px-3 py-2.5"
+      style={{ borderColor: segmentColor }}
+    >
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className="text-[11px] font-semibold" style={{ color: segmentColor }}>
+          {fromIndex + 1}번 → {toIndex + 1}번 이동
+        </p>
+        <div className="flex gap-0.5">
+          {(["WALK", "DRIVE", "TRANSIT"] as RouteViewMode[]).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => onRouteViewModeChange(m)}
+              className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                routeViewMode === m
+                  ? "bg-blue-600 text-white"
+                  : "bg-white text-zinc-500 ring-1 ring-zinc-200"
+              }`}
+            >
+              {ROUTE_MODE_LABELS[m]}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {loading ? (
         <div className="flex items-center gap-2 text-xs text-zinc-400">
@@ -131,60 +130,75 @@ export function RouteSegmentInfo({
             </p>
           )}
 
-          <div className="rounded-md bg-white px-2.5 py-2 shadow-sm">
-            <div className="mb-1 flex items-center gap-1 text-[11px] font-semibold text-zinc-700">
-              <Car className="h-3 w-3" />
-              택시
-            </div>
-            <InfoRow label="시간:" value={taxi.duration} />
-            <InfoRow label="예상 요금:" value={formatYen(taxi.fareYen)} />
-            {taxi.phraseJa && <CopyablePhrase text={taxi.phraseJa} />}
-            <p className="mt-1 text-[10px] text-zinc-400">{taxi.phraseKo}</p>
-          </div>
-
-          <div className="rounded-md bg-white px-2.5 py-2 shadow-sm">
-            <div className="mb-1 flex items-center gap-1 text-[11px] font-semibold text-zinc-700">
-              <Train className="h-3 w-3" />
-              지하철·전철
-            </div>
-            {transit ? (
-              <>
-                <InfoRow label="시간:" value={transit.duration} />
-                <InfoRow
-                  label="요금:"
-                  value={
-                    transit.fareText ??
-                    formatYen(transit.fareYen)
-                  }
-                />
-                <InfoRow label="노선:" value={transit.lineName} />
-                <InfoRow label="승차:" value={transit.boardStop} />
-                <InfoRow label="하차:" value={transit.alightStop} />
-                {transit.headsign && (
-                  <InfoRow label="방향:" value={transit.headsign} />
+          {(routeViewMode === "DRIVE" || routeViewMode === "WALK") && (
+            <div className="rounded-md bg-white px-2.5 py-2 shadow-sm">
+              <div className="mb-1 flex items-center gap-1 text-[11px] font-semibold text-zinc-700">
+                {routeViewMode === "DRIVE" ? (
+                  <Car className="h-3 w-3" />
+                ) : (
+                  <Footprints className="h-3 w-3" />
                 )}
-                {!transit.boardStop && !transit.duration && (
-                  <p className="text-[11px] text-zinc-400">
-                    이 구간은 대중교통 경로가 없습니다.
-                  </p>
-                )}
-              </>
-            ) : (
-              <p className="text-[11px] text-zinc-400">
-                지하철 경로를 찾을 수 없습니다.
-              </p>
-            )}
-          </div>
-
-          {walking && (
-            <div className="flex items-center gap-1 text-[11px] text-zinc-600">
-              <Footprints className="h-3 w-3 text-zinc-400" />
-              <span className="text-zinc-400">도보</span>
-              <span className="font-medium">{walking}</span>
+                {ROUTE_MODE_LABELS[routeViewMode]} 경로 (도로 따라감)
+              </div>
+              <InfoRow
+                label="시간:"
+                value={routeViewMode === "DRIVE" ? taxi.duration : walking}
+              />
+              {routeViewMode === "DRIVE" && (
+                <>
+                  <InfoRow label="예상 요금:" value={formatYen(taxi.fareYen)} />
+                  {taxi.phraseJa && <CopyablePhrase text={taxi.phraseJa} />}
+                </>
+              )}
             </div>
           )}
 
-          <RestaurantBlock place={to} />
+          {routeViewMode === "TRANSIT" && (
+            <div className="rounded-md bg-white px-2.5 py-2 shadow-sm">
+              <div className="mb-1 flex items-center gap-1 text-[11px] font-semibold text-zinc-700">
+                <Train className="h-3 w-3" />
+                지하철·전철 (역↔역)
+              </div>
+              {transit ? (
+                <>
+                  <InfoRow label="총 시간:" value={transit.duration} />
+                  <InfoRow
+                    label="요금:"
+                    value={transit.fareText ?? formatYen(transit.fareYen)}
+                  />
+                  {transit.steps.length > 0 ? (
+                    <div className="mt-2 space-y-2">
+                      {transit.steps.map((step, i) => (
+                        <div
+                          key={i}
+                          className="rounded-md bg-blue-50 px-2 py-1.5 ring-1 ring-blue-100"
+                        >
+                          <p className="text-[11px] font-semibold text-blue-900">
+                            {i + 1}구간 · {step.vehicleType ?? "대중교통"}{" "}
+                            {step.lineShort ?? step.lineName}
+                          </p>
+                          <InfoRow label="승차:" value={step.boardStop} />
+                          <InfoRow label="하차:" value={step.alightStop} />
+                          <InfoRow label="방향:" value={step.headsign} />
+                          <InfoRow label="시간:" value={step.duration} />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <>
+                      <InfoRow label="노선:" value={transit.lineName} />
+                      <InfoRow label="승차:" value={transit.boardStop} />
+                      <InfoRow label="하차:" value={transit.alightStop} />
+                    </>
+                  )}
+                </>
+              ) : (
+                <p className="text-[11px] text-zinc-400">
+                  지하철 경로를 찾을 수 없습니다.
+                </p>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

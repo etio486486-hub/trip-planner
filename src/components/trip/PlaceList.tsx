@@ -17,7 +17,9 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Trash2 } from "lucide-react";
+import { NearbyRestaurants } from "./NearbyRestaurants";
 import { RouteSegmentInfo } from "./RouteSegmentInfo";
+import type { RouteViewMode } from "@/lib/maps/segment-colors";
 import type { Place } from "@/types/database";
 
 type PlaceListProps = {
@@ -26,6 +28,8 @@ type PlaceListProps = {
   onSelectPlace: (placeId: string) => void;
   onReorder: (orderedIds: string[]) => void;
   onDelete: (placeId: string) => void;
+  routeViewMode: RouteViewMode;
+  onRouteViewModeChange: (mode: RouteViewMode) => void;
 };
 
 function SortablePlaceItem({
@@ -109,6 +113,8 @@ export function PlaceList({
   onSelectPlace,
   onReorder,
   onDelete,
+  routeViewMode,
+  onRouteViewModeChange,
 }: PlaceListProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -161,12 +167,15 @@ export function PlaceList({
                 onSelect={onSelectPlace}
                 onDelete={onDelete}
               />
+              <NearbyRestaurants place={place} placeIndex={index} />
               {index < places.length - 1 && (
                 <RouteSegmentInfo
                   from={place}
                   to={places[index + 1]}
                   fromIndex={index}
                   toIndex={index + 1}
+                  routeViewMode={routeViewMode}
+                  onRouteViewModeChange={onRouteViewModeChange}
                 />
               )}
             </div>

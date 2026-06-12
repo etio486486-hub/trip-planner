@@ -62,6 +62,68 @@ function isRestaurantType(types: string[] | undefined, primaryType?: string): bo
   return (types ?? []).some((t) => RESTAURANT_TYPES.has(t));
 }
 
+export type NearbyRestaurant = {
+  name: string;
+  rating: number | null;
+  reviewCount: number | null;
+  address: string | null;
+};
+
+type NearbyPlace = {
+  displayName?: { text?: string };
+  rating?: number;
+  userRatingCount?: number;
+  formattedAddress?: string;
+};
+
+export async function fetchNearbyRestaurants(
+  latitude: number,
+  longitude: number,
+  radiusMeters = 1000
+): Promise<NearbyRestaurant[]> {
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
+  if (!apiKey.startsWith("AIza")) return [];
+
+  const response = await fetch(
+    "https://places.googleapis.com/v1/places:searchNearby",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": apiKey,
+        "X-Goog-FieldMask":
+          "places.displayName,places.rating,places.userRatingCount,places.formattedAddress",
+      },
+      body: JSON.stringify({
+        includedTypes: ["restaurant"],
+        maxResultCount: 20,
+        rankPreference: "POPULARITY",
+        locationRestriction: {
+          circle: {
+            center: { latitude, longitude },
+            radius: radiusMeters,
+          },
+        },
+      }),
+    }
+  );
+
+  if (!response.ok) return [];
+
+  const data = (await response.json()) as { places?: NearbyPlace[] };
+  const ranked = (data.places ?? [])
+    .map((p) => ({
+      name: p.displayName?.text ?? "이름 없음",
+      rating: p.rating ?? null,
+      reviewCount: p.userRatingCount ?? null,
+      address: p.formattedAddress ?? null,
+    }))
+    .filter((p) => p.rating != null)
+    .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+
+  return ranked.slice(0, 3);
+}
+
 export async function fetchRestaurantInfo(
   googlePlaceId: string | null
 ): Promise<RestaurantInfo | null> {
