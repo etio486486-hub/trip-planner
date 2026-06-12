@@ -40,6 +40,8 @@ CREATE TABLE IF NOT EXISTS places (
   longitude DOUBLE PRECISION NOT NULL,
   visit_order INT NOT NULL DEFAULT 0,
   memo TEXT,
+  visit_time TEXT,
+  duration_minutes INT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -56,6 +58,8 @@ CREATE TABLE IF NOT EXISTS checklist_items (
   is_checked BOOLEAN NOT NULL DEFAULT false,
   sort_order INT NOT NULL DEFAULT 0,
   created_by UUID,
+  assigned_to_user_id UUID,
+  assigned_to_name TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -71,6 +75,8 @@ CREATE TABLE IF NOT EXISTS expenses (
   paid_by_user_id UUID,
   paid_by_name TEXT,
   memo TEXT,
+  is_shared BOOLEAN NOT NULL DEFAULT false,
+  split_user_ids TEXT[] NOT NULL DEFAULT '{}',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

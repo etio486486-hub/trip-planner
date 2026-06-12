@@ -16,7 +16,9 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Trash2 } from "lucide-react";
+import { Clock, GripVertical, Trash2 } from "lucide-react";
+import { PlaceScheduleEditor } from "./PlaceScheduleEditor";
+import { PlaceTimeline } from "./PlaceTimeline";
 import {
   getSegmentMode,
   isSegmentVisible,
@@ -25,7 +27,7 @@ import {
 import type { RouteViewMode } from "@/lib/maps/segment-colors";
 import { NearbyRestaurants } from "./NearbyRestaurants";
 import { RouteSegmentInfo } from "./RouteSegmentInfo";
-import type { Place } from "@/types/database";
+import type { Place, PlaceScheduleUpdate } from "@/types/database";
 
 type PlaceListProps = {
   places: Place[];
@@ -48,6 +50,7 @@ type PlaceListProps = {
   ) => void;
   onShowOnlySegment: (fromId: string, toId: string) => void;
   onShowAllSegments: () => void;
+  onUpdatePlace: (placeId: string, data: PlaceScheduleUpdate) => Promise<void>;
 };
 
 function SortablePlaceItem({
@@ -106,8 +109,20 @@ function SortablePlaceItem({
         <p className="truncate text-sm font-medium text-zinc-800">
           {place.name}
         </p>
-        {place.memo && (
-          <p className="truncate text-xs text-zinc-400">{place.memo}</p>
+        {(place.visit_time || place.memo) && (
+          <p className="truncate text-xs text-zinc-400">
+            {place.visit_time && (
+              <span className="inline-flex items-center gap-0.5 text-blue-600">
+                <Clock className="h-3 w-3" />
+                {place.visit_time}
+                {place.duration_minutes
+                  ? ` · ${place.duration_minutes}분`
+                  : ""}
+              </span>
+            )}
+            {place.visit_time && place.memo ? " · " : ""}
+            {place.memo}
+          </p>
         )}
       </button>
       <button
@@ -138,6 +153,7 @@ export function PlaceList({
   onSegmentVisibilityChange,
   onShowOnlySegment,
   onShowAllSegments,
+  onUpdatePlace,
 }: PlaceListProps) {
   const hasHiddenSegment =
     routeLegs.length > 0 &&
@@ -187,6 +203,7 @@ export function PlaceList({
         strategy={verticalListSortingStrategy}
       >
         <div className="flex flex-col gap-2 p-3">
+          <PlaceTimeline places={places} />
           {hasHiddenSegment && (
             <button
               type="button"
@@ -205,6 +222,12 @@ export function PlaceList({
                 onSelect={onSelectPlace}
                 onDelete={onDelete}
               />
+              {selectedPlaceId === place.id && (
+                <PlaceScheduleEditor
+                  place={place}
+                  onSave={onUpdatePlace}
+                />
+              )}
               <NearbyRestaurants place={place} placeIndex={index} />
               {index < places.length - 1 && routeLegs[index] && (
                 <RouteSegmentInfo

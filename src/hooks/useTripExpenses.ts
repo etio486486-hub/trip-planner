@@ -18,6 +18,8 @@ export type ExpenseInput = {
   paid_by_user_id: string | null;
   paid_by_name: string;
   memo?: string | null;
+  is_shared?: boolean;
+  split_user_ids?: string[];
 };
 
 export type MemberExpenseSummary = {
@@ -34,6 +36,15 @@ export type CategoryExpenseSummary = {
 function parseAmount(value: number | string): number {
   const n = typeof value === "string" ? Number(value) : value;
   return Number.isFinite(n) ? n : 0;
+}
+
+function normalizeExpense(row: Expense): Expense {
+  return {
+    ...row,
+    amount: parseAmount(row.amount),
+    is_shared: row.is_shared ?? false,
+    split_user_ids: row.split_user_ids ?? [],
+  };
 }
 
 export function useTripExpenses(tripId: string) {
@@ -70,12 +81,7 @@ export function useTripExpenses(tripId: string) {
         throw fetchError;
       }
 
-      setExpenses(
-        (data ?? []).map((row) => ({
-          ...row,
-          amount: parseAmount(row.amount),
-        }))
-      );
+      setExpenses((data ?? []).map((row) => normalizeExpense(row as Expense)));
     } catch (err) {
       if (isMissingTableError(err, "expenses")) {
         setNeedsMigration(true);
@@ -115,7 +121,7 @@ export function useTripExpenses(tripId: string) {
 
           const row = payload.new as Expense;
           if (row.trip_id !== tripId) return;
-          const normalized = { ...row, amount: parseAmount(row.amount) };
+          const normalized = normalizeExpense(row);
 
           if (payload.eventType === "INSERT") {
             setExpenses((prev) => {
@@ -205,6 +211,8 @@ export function useTripExpenses(tripId: string) {
         paid_by_user_id: input.paid_by_user_id,
         paid_by_name: input.paid_by_name,
         memo: input.memo ?? null,
+        is_shared: input.is_shared ?? false,
+        split_user_ids: input.split_user_ids ?? [],
       });
 
       if (insertError) throw insertError;

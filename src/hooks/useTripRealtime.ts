@@ -14,6 +14,7 @@ import type {
   DailyPlan,
   Place,
   PlaceInput,
+  PlaceScheduleUpdate,
   PresenceUser,
   Trip,
   TripMember,
@@ -41,6 +42,7 @@ type UseTripRealtimeReturn = {
   selectedDailyPlan: DailyPlan | null;
   addPlace: (input: PlaceInput) => Promise<void>;
   deletePlace: (placeId: string) => Promise<void>;
+  updatePlace: (placeId: string, data: PlaceScheduleUpdate) => Promise<void>;
   reorderPlaces: (orderedIds: string[]) => Promise<void>;
   addDay: () => Promise<number>;
   removeDay: (dayNumber: number) => Promise<number>;
@@ -501,6 +503,26 @@ export function useTripRealtime({
     [selectedDailyPlan, places]
   );
 
+  const updatePlace = useCallback(
+    async (placeId: string, data: PlaceScheduleUpdate) => {
+      const previous = places;
+      setPlaces((prev) =>
+        prev.map((p) => (p.id === placeId ? { ...p, ...data } : p))
+      );
+
+      const { error: updateError } = await getSupabase()
+        .from("places")
+        .update(data)
+        .eq("id", placeId);
+
+      if (updateError) {
+        setPlaces(previous);
+        throw updateError;
+      }
+    },
+    [places]
+  );
+
   const deletePlace = useCallback(
     async (placeId: string) => {
       const previous = places;
@@ -641,6 +663,7 @@ export function useTripRealtime({
     selectedDailyPlan,
     addPlace,
     deletePlace,
+    updatePlace,
     reorderPlaces,
     addDay,
     removeDay,

@@ -58,7 +58,15 @@ export function useTripChecklist(tripId: string, currentUserId: string) {
         throw fetchError;
       }
 
-      setItems(sortItems(data ?? []));
+      setItems(
+        sortItems(
+          (data ?? []).map((row) => ({
+            ...row,
+            assigned_to_user_id: row.assigned_to_user_id ?? null,
+            assigned_to_name: row.assigned_to_name ?? null,
+          }))
+        )
+      );
     } catch (err) {
       if (isMissingTableError(err, "checklist_items")) {
         setNeedsMigration(true);
@@ -126,7 +134,11 @@ export function useTripChecklist(tripId: string, currentUserId: string) {
   }, [items]);
 
   const addItem = useCallback(
-    async (title: string, category: string = "기타") => {
+    async (
+      title: string,
+      category: string = "기타",
+      assignedTo?: { userId: string | null; name: string | null }
+    ) => {
       const trimmed = title.trim();
       if (!trimmed) return;
 
@@ -143,11 +155,44 @@ export function useTripChecklist(tripId: string, currentUserId: string) {
           category,
           sort_order: nextOrder,
           created_by: currentUserId || null,
+          assigned_to_user_id: assignedTo?.userId ?? null,
+          assigned_to_name: assignedTo?.name ?? null,
         });
 
       if (insertError) throw insertError;
     },
     [tripId, items, currentUserId]
+  );
+
+  const assignItem = useCallback(
+    async (
+      id: string,
+      userId: string | null,
+      name: string | null
+    ) => {
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                assigned_to_user_id: userId,
+                assigned_to_name: name,
+              }
+            : item
+        )
+      );
+
+      const { error: updateError } = await getSupabase()
+        .from("checklist_items")
+        .update({
+          assigned_to_user_id: userId,
+          assigned_to_name: name,
+        })
+        .eq("id", id);
+
+      if (updateError) throw updateError;
+    },
+    []
   );
 
   const toggleItem = useCallback(async (id: string, isChecked: boolean) => {
@@ -210,6 +255,7 @@ export function useTripChecklist(tripId: string, currentUserId: string) {
     needsMigration,
     progress,
     addItem,
+    assignItem,
     toggleItem,
     deleteItem,
     seedTemplate,

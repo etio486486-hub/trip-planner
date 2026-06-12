@@ -12,17 +12,23 @@ import {
 import type { useTripChecklist } from "@/hooks/useTripChecklist";
 import { isMissingTableError } from "@/lib/supabase/errors";
 import { CHECKLIST_CATEGORIES } from "@/lib/trip-constants";
-import type { ChecklistItem } from "@/types/database";
+import { resolveMemberName } from "@/hooks/useTripExpenses";
+import type { ChecklistItem, TripMember } from "@/types/database";
 import { MigrationNotice } from "./MigrationNotice";
 
 type ChecklistPanelProps = {
   checklist: ReturnType<typeof useTripChecklist>;
+  members: TripMember[];
   isMobile?: boolean;
 };
 
 const ALL_FILTER = "전체";
 
-export function ChecklistPanel({ checklist, isMobile = false }: ChecklistPanelProps) {
+export function ChecklistPanel({
+  checklist,
+  members,
+  isMobile = false,
+}: ChecklistPanelProps) {
   const {
     items,
     loading,
@@ -30,6 +36,7 @@ export function ChecklistPanel({ checklist, isMobile = false }: ChecklistPanelPr
     needsMigration,
     progress,
     addItem,
+    assignItem,
     toggleItem,
     deleteItem,
     seedTemplate,
@@ -38,6 +45,7 @@ export function ChecklistPanel({ checklist, isMobile = false }: ChecklistPanelPr
   const [filter, setFilter] = useState<string>(ALL_FILTER);
   const [newTitle, setNewTitle] = useState("");
   const [newCategory, setNewCategory] = useState<string>("기타");
+  const [newAssigneeId, setNewAssigneeId] = useState<string>("");
   const [adding, setAdding] = useState(false);
   const [seeding, setSeeding] = useState(false);
 
@@ -63,7 +71,13 @@ export function ChecklistPanel({ checklist, isMobile = false }: ChecklistPanelPr
     if (!newTitle.trim()) return;
     setAdding(true);
     try {
-      await addItem(newTitle, newCategory);
+      const assignee = newAssigneeId
+        ? {
+            userId: newAssigneeId,
+            name: resolveMemberName(members, newAssigneeId),
+          }
+        : undefined;
+      await addItem(newTitle, newCategory, assignee);
       setNewTitle("");
     } catch (err) {
       alert(err instanceof Error ? err.message : "항목 추가 실패");
@@ -187,8 +201,10 @@ export function ChecklistPanel({ checklist, isMobile = false }: ChecklistPanelPr
                       <ChecklistRow
                         key={item.id}
                         item={item}
+                        members={members}
                         onToggle={toggleItem}
                         onDelete={deleteItem}
+                        onAssign={assignItem}
                       />
                     ))}
                   </ul>
@@ -205,7 +221,7 @@ export function ChecklistPanel({ checklist, isMobile = false }: ChecklistPanelPr
           isMobile ? "pb-[env(safe-area-inset-bottom)]" : ""
         }`}
       >
-        <div className="flex gap-2 px-3 py-2">
+        <div className="flex flex-wrap gap-2 px-3 py-2">
           <select
             value={newCategory}
             onChange={(e) => setNewCategory(e.target.value)}
@@ -214,6 +230,18 @@ export function ChecklistPanel({ checklist, isMobile = false }: ChecklistPanelPr
             {CHECKLIST_CATEGORIES.map((cat) => (
               <option key={cat} value={cat}>
                 {cat}
+              </option>
+            ))}
+          </select>
+          <select
+            value={newAssigneeId}
+            onChange={(e) => setNewAssigneeId(e.target.value)}
+            className="min-w-0 flex-1 rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-2 text-xs text-zinc-700 outline-none focus:border-blue-400"
+          >
+            <option value="">담당자 (선택)</option>
+            {members.map((m) => (
+              <option key={m.user_id} value={m.user_id}>
+                {m.display_name ?? m.user_id.slice(0, 6)}
               </option>
             ))}
           </select>
@@ -245,12 +273,20 @@ export function ChecklistPanel({ checklist, isMobile = false }: ChecklistPanelPr
 
 function ChecklistRow({
   item,
+  members,
   onToggle,
   onDelete,
+  onAssign,
 }: {
   item: ChecklistItem;
+  members: TripMember[];
   onToggle: (id: string, checked: boolean) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  onAssign: (
+    id: string,
+    userId: string | null,
+    name: string | null
+  ) => Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);
 
@@ -279,15 +315,42 @@ function ChecklistRow({
       >
         {item.is_checked && <Check className="h-3 w-3" strokeWidth={3} />}
       </button>
-      <span
-        className={`min-w-0 flex-1 text-sm ${
-          item.is_checked
-            ? "text-zinc-400 line-through"
-            : "text-zinc-800"
-        }`}
-      >
-        {item.title}
-      </span>
+      <div className="min-w-0 flex-1">
+        <span
+          className={`text-sm ${
+            item.is_checked
+              ? "text-zinc-400 line-through"
+              : "text-zinc-800"
+          }`}
+        >
+          {item.title}
+        </span>
+        <select
+          value={item.assigned_to_user_id ?? ""}
+          disabled={busy}
+          onChange={async (e) => {
+            const uid = e.target.value || null;
+            setBusy(true);
+            try {
+              await onAssign(
+                item.id,
+                uid,
+                uid ? resolveMemberName(members, uid) : null
+              );
+            } finally {
+              setBusy(false);
+            }
+          }}
+          className="mt-0.5 block max-w-full truncate rounded border-0 bg-transparent p-0 text-[10px] text-blue-600 outline-none"
+        >
+          <option value="">담당자 없음</option>
+          {members.map((m) => (
+            <option key={m.user_id} value={m.user_id}>
+              @{m.display_name ?? m.user_id.slice(0, 6)}
+            </option>
+          ))}
+        </select>
+      </div>
       <button
         type="button"
         onClick={async () => {

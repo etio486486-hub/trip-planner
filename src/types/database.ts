@@ -31,6 +31,8 @@ export interface Place {
   longitude: number;
   visit_order: number;
   memo: string | null;
+  visit_time: string | null;
+  duration_minutes: number | null;
   created_at?: string;
 }
 
@@ -42,6 +44,8 @@ export interface ChecklistItem {
   is_checked: boolean;
   sort_order: number;
   created_by: string | null;
+  assigned_to_user_id: string | null;
+  assigned_to_name: string | null;
   created_at?: string;
 }
 
@@ -56,6 +60,8 @@ export interface Expense {
   paid_by_user_id: string | null;
   paid_by_name: string | null;
   memo: string | null;
+  is_shared: boolean;
+  split_user_ids: string[];
   created_at?: string;
 }
 
@@ -127,6 +133,8 @@ export interface Database {
           longitude: number;
           visit_order?: number;
           memo?: string | null;
+          visit_time?: string | null;
+          duration_minutes?: number | null;
           created_at?: string;
         };
         Update: {
@@ -138,6 +146,8 @@ export interface Database {
           longitude?: number;
           visit_order?: number;
           memo?: string | null;
+          visit_time?: string | null;
+          duration_minutes?: number | null;
           created_at?: string;
         };
         Relationships: [];
@@ -152,6 +162,8 @@ export interface Database {
           is_checked?: boolean;
           sort_order?: number;
           created_by?: string | null;
+          assigned_to_user_id?: string | null;
+          assigned_to_name?: string | null;
           created_at?: string;
         };
         Update: {
@@ -162,6 +174,8 @@ export interface Database {
           is_checked?: boolean;
           sort_order?: number;
           created_by?: string | null;
+          assigned_to_user_id?: string | null;
+          assigned_to_name?: string | null;
           created_at?: string;
         };
         Relationships: [];
@@ -179,6 +193,8 @@ export interface Database {
           paid_by_user_id?: string | null;
           paid_by_name?: string | null;
           memo?: string | null;
+          is_shared?: boolean;
+          split_user_ids?: string[];
           created_at?: string;
         };
         Update: {
@@ -192,6 +208,8 @@ export interface Database {
           paid_by_user_id?: string | null;
           paid_by_name?: string | null;
           memo?: string | null;
+          is_shared?: boolean;
+          split_user_ids?: string[];
           created_at?: string;
         };
         Relationships: [];
@@ -217,6 +235,12 @@ export type PlaceInput = {
   google_place_id?: string | null;
   latitude: number;
   longitude: number;
+  memo?: string | null;
+};
+
+export type PlaceScheduleUpdate = {
+  visit_time?: string | null;
+  duration_minutes?: number | null;
   memo?: string | null;
 };
 

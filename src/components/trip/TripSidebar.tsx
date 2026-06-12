@@ -15,8 +15,16 @@ import type { useTripChecklist } from "@/hooks/useTripChecklist";
 import type { useTripExpenses } from "@/hooks/useTripExpenses";
 import type { SegmentLegState } from "@/hooks/useTripRouteLegs";
 import type { RouteViewMode } from "@/lib/maps/segment-colors";
-import type { DailyPlan, Place, PresenceUser, Trip, TripMember } from "@/types/database";
-import type { PlaceInput } from "@/types/database";
+import type {
+  DailyPlan,
+  Place,
+  PlaceScheduleUpdate,
+  PresenceUser,
+  Trip,
+  TripMember,
+  PlaceInput,
+} from "@/types/database";
+import { TripShareMenu } from "./TripShareMenu";
 
 type TripSidebarProps = {
   tripId: string;
@@ -37,6 +45,7 @@ type TripSidebarProps = {
   }) => Promise<void>;
   onAddPlace: (place: PlaceInput) => Promise<void>;
   onDeletePlace: (id: string) => void;
+  onUpdatePlace: (placeId: string, data: PlaceScheduleUpdate) => Promise<void>;
   onReorderPlaces: (ids: string[]) => void;
   selectedPlaceId: string | null;
   onSelectPlace: (placeId: string) => void;
@@ -81,6 +90,7 @@ function ItineraryContent({
   onShowOnlySegment,
   onShowAllSegments,
   onAddPlace,
+  onUpdatePlace,
   isMobile,
 }: {
   loading: boolean;
@@ -105,6 +115,7 @@ function ItineraryContent({
   onShowOnlySegment: (fromId: string, toId: string) => void;
   onShowAllSegments: () => void;
   onAddPlace: (place: PlaceInput) => Promise<void>;
+  onUpdatePlace: (placeId: string, data: PlaceScheduleUpdate) => Promise<void>;
   isMobile?: boolean;
 }) {
   return (
@@ -129,6 +140,7 @@ function ItineraryContent({
               onSegmentVisibilityChange={onSegmentVisibilityChange}
               onShowOnlySegment={onShowOnlySegment}
               onShowAllSegments={onShowAllSegments}
+              onUpdatePlace={onUpdatePlace}
             />
           </div>
         )}
@@ -162,6 +174,7 @@ export function TripSidebar({
   onUpdateTrip,
   onAddPlace,
   onDeletePlace,
+  onUpdatePlace,
   onReorderPlaces,
   selectedPlaceId,
   onSelectPlace,
@@ -185,10 +198,27 @@ export function TripSidebar({
   const onlineCount = onlineUsers.length;
   const teamSummary = `멤버 ${members.length}명${onlineCount > 0 ? ` · 온라인 ${onlineCount}` : ""}`;
 
+  const shareMenu = (
+    <TripShareMenu
+      trip={trip}
+      tripId={tripId}
+      dailyPlans={dailyPlans}
+      selectedDayNumber={selectedDayNumber}
+      places={places}
+      members={members}
+      expenses={expenses}
+      checklist={checklist}
+      compact={isMobile}
+    />
+  );
+
   if (isMobile) {
     return (
       <aside className="flex h-full w-full min-w-0 flex-col bg-white">
-        <TripHeader trip={trip} onUpdate={onUpdateTrip} compact />
+        <div className="relative shrink-0">
+          <TripHeader trip={trip} onUpdate={onUpdateTrip} compact />
+          <div className="absolute right-2 top-2">{shareMenu}</div>
+        </div>
 
         <CollapsibleSection title="팀 · 초대" summary={teamSummary}>
           <InviteMembers tripId={tripId} compact />
@@ -237,15 +267,21 @@ export function TripSidebar({
             onShowOnlySegment={onShowOnlySegment}
             onShowAllSegments={onShowAllSegments}
             onAddPlace={onAddPlace}
+            onUpdatePlace={onUpdatePlace}
             isMobile
           />
         )}
 
         {sidebarTab === "checklist" && (
-          <ChecklistPanel checklist={checklist} isMobile />
+          <ChecklistPanel
+            checklist={checklist}
+            members={members}
+            isMobile
+          />
         )}
         {sidebarTab === "budget" && (
           <ExpensePanel
+            tripId={tripId}
             expenses={expenses}
             members={members}
             currentUserId={currentUserId}
@@ -260,7 +296,10 @@ export function TripSidebar({
 
   return (
     <aside className="flex h-full w-full min-w-0 flex-col border-zinc-200 bg-white lg:border-r">
-      <TripHeader trip={trip} onUpdate={onUpdateTrip} />
+      <div className="relative shrink-0">
+        <TripHeader trip={trip} onUpdate={onUpdateTrip} />
+        <div className="absolute right-3 top-3">{shareMenu}</div>
+      </div>
 
       <InviteMembers tripId={tripId} />
       <MemberList
@@ -299,15 +338,17 @@ export function TripSidebar({
             onShowOnlySegment={onShowOnlySegment}
             onShowAllSegments={onShowAllSegments}
             onAddPlace={onAddPlace}
+            onUpdatePlace={onUpdatePlace}
           />
         </>
       )}
 
       {sidebarTab === "checklist" && (
-        <ChecklistPanel checklist={checklist} />
+        <ChecklistPanel checklist={checklist} members={members} />
       )}
       {sidebarTab === "budget" && (
         <ExpensePanel
+          tripId={tripId}
           expenses={expenses}
           members={members}
           currentUserId={currentUserId}

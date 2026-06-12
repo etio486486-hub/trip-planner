@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
+  ArrowRight,
   Calculator,
+  ChevronDown,
   Loader2,
   Plus,
   Trash2,
   User,
+  Users,
   X,
 } from "lucide-react";
 import {
@@ -14,6 +17,17 @@ import {
   type ExpenseInput,
   type useTripExpenses,
 } from "@/hooks/useTripExpenses";
+import {
+  computeMemberBalances,
+  computeSettlementTransfers,
+  totalInBase,
+} from "@/lib/expense-settlement";
+import {
+  formatBaseHint,
+  loadExchangeRates,
+  saveExchangeRates,
+  type TripExchangeRates,
+} from "@/lib/exchange-rates";
 import { formatDateKo, formatMoney } from "@/lib/format";
 import { isMissingTableError } from "@/lib/supabase/errors";
 import {
@@ -27,6 +41,7 @@ import type { TripMember } from "@/types/database";
 import { MigrationNotice } from "./MigrationNotice";
 
 type ExpensePanelProps = {
+  tripId: string;
   expenses: ReturnType<typeof useTripExpenses>;
   members: TripMember[];
   currentUserId: string;
@@ -36,6 +51,7 @@ type ExpensePanelProps = {
 };
 
 export function ExpensePanel({
+  tripId,
   expenses: expenseState,
   members,
   currentUserId,
@@ -44,6 +60,7 @@ export function ExpensePanel({
   isMobile = false,
 }: ExpensePanelProps) {
   const {
+    expenses: expensesList,
     loading,
     error,
     needsMigration,
@@ -56,6 +73,29 @@ export function ExpensePanel({
   } = expenseState;
 
   const [formOpen, setFormOpen] = useState(false);
+  const [rates, setRates] = useState<TripExchangeRates>(() =>
+    loadExchangeRates(tripId)
+  );
+  const [ratesOpen, setRatesOpen] = useState(false);
+
+  useEffect(() => {
+    setRates(loadExchangeRates(tripId));
+  }, [tripId]);
+
+  const totalBase = useMemo(
+    () => totalInBase(expensesList, rates),
+    [expensesList, rates]
+  );
+
+  const settlementTransfers = useMemo(() => {
+    const balances = computeMemberBalances(expensesList, members, rates);
+    return computeSettlementTransfers(balances, rates.baseCurrency);
+  }, [expensesList, members, rates]);
+
+  const saveRates = (next: TripExchangeRates) => {
+    setRates(next);
+    saveExchangeRates(tripId, next);
+  };
 
   if (needsMigration || (error && isMissingTableError({ message: error }))) {
     return <MigrationNotice feature="가계부" />;
@@ -94,14 +134,97 @@ export function ExpensePanel({
             ))
           )}
         </div>
+        {expensesList.length > 0 && (
+          <p className="mt-1 text-sm font-semibold text-emerald-800">
+            환산 합계 ({rates.baseCurrency}):{" "}
+            {formatMoney(totalBase, rates.baseCurrency)}
+          </p>
+        )}
         <p className="mt-1 text-[11px] text-zinc-500">
           {expensesByDate.length > 0
-            ? `${expensesByDate.reduce((s, [, list]) => s + list.length, 0)}건 기록 · 멤버별 정산 참고`
-            : "지출을 기록하면 멤버별 합계가 표시됩니다"}
+            ? `${expensesByDate.reduce((s, [, list]) => s + list.length, 0)}건 기록`
+            : "지출을 기록하면 정산이 자동 계산됩니다"}
         </p>
+        <button
+          type="button"
+          onClick={() => setRatesOpen((v) => !v)}
+          className="mt-2 flex w-full items-center justify-between rounded-md bg-white/80 px-2 py-1.5 text-[11px] text-zinc-600 ring-1 ring-zinc-200"
+        >
+          <span>환율 설정 (1¥ = {rates.toBase.JPY}{rates.baseCurrency === "KRW" ? "원" : ""})</span>
+          <ChevronDown
+            className={`h-3.5 w-3.5 transition-transform ${ratesOpen ? "rotate-180" : ""}`}
+          />
+        </button>
+        {ratesOpen && (
+          <div className="mt-2 space-y-2 rounded-md bg-white p-2 ring-1 ring-zinc-200">
+            <label className="block text-[10px] text-zinc-500">기준 통화</label>
+            <select
+              value={rates.baseCurrency}
+              onChange={(e) =>
+                saveRates({
+                  ...rates,
+                  baseCurrency: e.target.value as TripExchangeRates["baseCurrency"],
+                })
+              }
+              className="w-full rounded border border-zinc-200 px-2 py-1 text-xs"
+            >
+              {EXPENSE_CURRENCIES.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+            {(["JPY", "USD"] as const).map((code) => (
+              <div key={code}>
+                <label className="text-[10px] text-zinc-500">
+                  1 {code} = ? {rates.baseCurrency}
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={rates.toBase[code]}
+                  onChange={(e) =>
+                    saveRates({
+                      ...rates,
+                      toBase: {
+                        ...rates.toBase,
+                        [code]: Number(e.target.value) || 0,
+                      },
+                    })
+                  }
+                  className="mt-0.5 w-full rounded border border-zinc-200 px-2 py-1 text-xs"
+                />
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* 멤버별 정산 */}
+      {/* 1/N 정산 */}
+      {settlementTransfers.length > 0 && (
+        <div className="shrink-0 border-b border-amber-100 bg-amber-50/50 px-3 py-2">
+          <p className="mb-1.5 px-1 text-[11px] font-semibold text-amber-800">
+            💸 정산 (누가 누구에게)
+          </p>
+          <ul className="space-y-1.5">
+            {settlementTransfers.map((t, i) => (
+              <li
+                key={i}
+                className="flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-2 text-xs ring-1 ring-amber-200"
+              >
+                <span className="font-medium text-zinc-800">{t.fromName}</span>
+                <ArrowRight className="h-3 w-3 shrink-0 text-amber-600" />
+                <span className="font-medium text-zinc-800">{t.toName}</span>
+                <span className="ml-auto font-bold text-amber-700">
+                  {formatMoney(t.amount, t.currency)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* 멤버별 결제 */}
       {memberSummaries.length > 0 && (
         <div className="shrink-0 border-b border-zinc-100 px-3 py-2">
           <p className="mb-1.5 px-1 text-[11px] font-semibold text-zinc-500">
@@ -215,6 +338,14 @@ export function ExpensePanel({
                             <span className="truncate text-sm font-medium text-zinc-800">
                               {exp.title}
                             </span>
+                            {exp.is_shared && (
+                              <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-medium text-amber-800">
+                                <Users className="h-2.5 w-2.5" />
+                                {exp.split_user_ids.length > 0
+                                  ? `${exp.split_user_ids.length}명`
+                                  : "공동"}
+                              </span>
+                            )}
                           </div>
                           <p className="mt-0.5 text-[11px] text-zinc-400">
                             {exp.paid_by_name ?? "미지정"} · 결제
@@ -232,6 +363,19 @@ export function ExpensePanel({
                               exp.currency as ExpenseCurrency
                             )}
                           </span>
+                          {formatBaseHint(
+                            exp.amount,
+                            exp.currency as ExpenseCurrency,
+                            rates
+                          ) && (
+                            <span className="text-[10px] text-zinc-400">
+                              {formatBaseHint(
+                                exp.amount,
+                                exp.currency as ExpenseCurrency,
+                                rates
+                              )}
+                            </span>
+                          )}
                           <button
                             type="button"
                             onClick={async () => {
@@ -321,7 +465,15 @@ function ExpenseAddModal({
   const [expenseDate, setExpenseDate] = useState(defaultDate ?? today);
   const [paidByUserId, setPaidByUserId] = useState(currentUserId);
   const [memo, setMemo] = useState("");
+  const [isShared, setIsShared] = useState(true);
+  const [splitUserIds, setSplitUserIds] = useState<string[]>(
+    members.map((m) => m.user_id)
+  );
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setSplitUserIds(members.map((m) => m.user_id));
+  }, [members]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -346,6 +498,8 @@ function ExpenseAddModal({
         paid_by_user_id: paidByUserId || null,
         paid_by_name: resolveMemberName(members, paidByUserId),
         memo: memo.trim() || null,
+        is_shared: isShared,
+        split_user_ids: isShared ? splitUserIds : [],
       });
     } catch (err) {
       alert(err instanceof Error ? err.message : "저장 실패");
@@ -473,6 +627,45 @@ function ExpenseAddModal({
               className="w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-sm outline-none focus:border-emerald-400"
             />
           </Field>
+
+          <label className="flex items-center gap-2 text-sm text-zinc-700">
+            <input
+              type="checkbox"
+              checked={isShared}
+              onChange={(e) => setIsShared(e.target.checked)}
+              className="rounded border-zinc-300"
+            />
+            <Users className="h-4 w-4 text-amber-600" />
+            함께 나누기 (1/N 정산)
+          </label>
+
+          {isShared && (
+            <div className="flex flex-wrap gap-1.5">
+              {members.map((m) => {
+                const selected = splitUserIds.includes(m.user_id);
+                return (
+                  <button
+                    key={m.user_id}
+                    type="button"
+                    onClick={() =>
+                      setSplitUserIds((prev) =>
+                        selected
+                          ? prev.filter((id) => id !== m.user_id)
+                          : [...prev, m.user_id]
+                      )
+                    }
+                    className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 ${
+                      selected
+                        ? "bg-amber-100 text-amber-900 ring-amber-300"
+                        : "bg-zinc-50 text-zinc-400 ring-zinc-200"
+                    }`}
+                  >
+                    {m.display_name ?? m.user_id.slice(0, 6)}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <button
