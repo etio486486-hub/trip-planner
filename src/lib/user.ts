@@ -1,3 +1,5 @@
+import { getCachedAuthUserId } from "@/lib/auth-cache";
+
 const USER_ID_KEY = "trip-planner-user-id";
 const USER_NAME_KEY = "trip-planner-user-name";
 const USER_NAME_SET_KEY = "trip-planner-name-customized";
@@ -99,9 +101,12 @@ function recordTripUserId(tripId: string, userId: string) {
   setTripUserHistory(tripId, [...getTripUserHistory(tripId), userId]);
 }
 
-/** 브라우저·기기마다 고정되는 ID */
+/** 로그인 사용자 ID 우선, 없으면 기기별 익명 ID */
 export function getUserId(): string {
   if (typeof window === "undefined") return "";
+
+  const authId = getCachedAuthUserId();
+  if (authId) return authId;
 
   let id = readStored(USER_ID_KEY, USER_ID_COOKIE);
   if (!id) {

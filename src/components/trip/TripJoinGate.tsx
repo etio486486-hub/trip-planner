@@ -2,6 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { KeyRound, Loader2, Map } from "lucide-react";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
+import {
+  ensureTripMembership,
+  getAuthDisplayName,
+  isTripMemberOrCreator,
+} from "@/lib/auth";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import { normalizeInviteCode } from "@/lib/invite-code";
 import {
@@ -17,6 +24,7 @@ type TripJoinGateProps = {
 };
 
 export function TripJoinGate({ tripId, children }: TripJoinGateProps) {
+  const { user, loading: authLoading, signInWithGoogle } = useAuth();
   const [loading, setLoading] = useState(true);
   const [allowed, setAllowed] = useState(false);
   const [tripTitle, setTripTitle] = useState("");
@@ -54,6 +62,35 @@ export function TripJoinGate({ tripId, children }: TripJoinGateProps) {
     setInviteCode(code);
 
     const userId = getUserId();
+
+    if (user) {
+      const isMember = await isTripMemberOrCreator(
+        tripId,
+        user.id,
+        data.creator_id
+      );
+      if (isMember) {
+        if (code) grantTripAccess(tripId, code);
+        touchJoinedTrip(tripId);
+        setAllowed(true);
+        setLoading(false);
+        return;
+      }
+
+      if (urlCode && code && urlCode === normalizeInviteCode(code)) {
+        await ensureTripMembership(
+          tripId,
+          user.id,
+          getAuthDisplayName(user)
+        );
+        grantTripAccess(tripId, code);
+        touchJoinedTrip(tripId);
+        setAllowed(true);
+        setLoading(false);
+        return;
+      }
+    }
+
     if (
       hasTripAccess(tripId, code, data.creator_id, userId) ||
       (urlCode && code && urlCode === normalizeInviteCode(code))
@@ -65,11 +102,12 @@ export function TripJoinGate({ tripId, children }: TripJoinGateProps) {
     }
 
     setLoading(false);
-  }, [tripId]);
+  }, [tripId, user]);
 
   useEffect(() => {
+    if (authLoading) return;
     verify();
-  }, [verify]);
+  }, [verify, authLoading]);
 
   const handleJoin = async () => {
     const normalized = normalizeInviteCode(inputCode);
@@ -98,6 +136,14 @@ export function TripJoinGate({ tripId, children }: TripJoinGateProps) {
         return;
       }
 
+      if (user) {
+        await ensureTripMembership(
+          tripId,
+          user.id,
+          getAuthDisplayName(user)
+        );
+      }
+
       grantTripAccess(tripId, data.invite_code);
       touchJoinedTrip(tripId);
       setAllowed(true);
@@ -106,7 +152,7 @@ export function TripJoinGate({ tripId, children }: TripJoinGateProps) {
     }
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="flex h-dvh items-center justify-center text-sm text-zinc-600">
         <Loader2 className="mr-2 h-5 w-5 animate-spin text-blue-600" />
@@ -129,10 +175,28 @@ export function TripJoinGate({ tripId, children }: TripJoinGateProps) {
           {tripTitle || "여행 참여"}
         </h1>
         <p className="mt-2 text-center text-sm text-zinc-600">
-          초대 링크 또는 참여 코드가 있어야 입장할 수 있습니다.
+          Google 로그인 후 참여하거나 초대 코드를 입력하세요.
         </p>
 
-        <div className="mt-5">
+        {!user && (
+          <div className="mt-5">
+            <GoogleSignInButton
+              onSignIn={() => signInWithGoogle(`/trips/${tripId}`)}
+              label="Google로 로그인하고 입장"
+            />
+          </div>
+        )}
+
+        <div className="relative my-5">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-zinc-200" />
+          </div>
+          <div className="relative flex justify-center text-xs text-zinc-400">
+            <span className="bg-white px-2">또는 참여 코드</span>
+          </div>
+        </div>
+
+        <div>
           <label className="mb-1 flex items-center gap-1 text-xs font-medium text-zinc-600">
             <KeyRound className="h-3.5 w-3.5" />
             참여 코드
@@ -144,7 +208,7 @@ export function TripJoinGate({ tripId, children }: TripJoinGateProps) {
             onKeyDown={(e) => e.key === "Enter" && handleJoin()}
             placeholder={inviteCode ? "예: ABC123" : "6자리 코드"}
             className="w-full rounded-lg border border-zinc-300 px-3 py-2.5 text-center text-lg font-mono font-bold tracking-widest"
-            autoFocus
+            autoFocus={Boolean(user)}
           />
         </div>
 
@@ -164,10 +228,6 @@ export function TripJoinGate({ tripId, children }: TripJoinGateProps) {
             "입장하기"
           )}
         </button>
-
-        <p className="mt-4 text-center text-xs text-zinc-500">
-          카카오톡으로 받은 초대 링크를 열면 자동으로 입장됩니다.
-        </p>
       </div>
     </div>
   );
