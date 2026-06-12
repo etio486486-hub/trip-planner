@@ -17,6 +17,7 @@ import {
   type JoinedTripRecord,
 } from "@/lib/trip-access";
 import { getUserId, syncDeviceIdentity } from "@/lib/user";
+import { PopularPlacesPanel } from "@/components/home/PopularPlacesPanel";
 
 type JoinedTripView = JoinedTripRecord & {
   title: string;
@@ -319,6 +320,8 @@ export default function Home() {
               )}
               새 여행 만들기
             </button>
+
+            <PopularPlacesPanel />
 
             <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
               <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-zinc-800">
