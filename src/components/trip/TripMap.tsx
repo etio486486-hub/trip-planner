@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo } from "react";
 import { AdvancedMarker, Map, useMap } from "@vis.gl/react-google-maps";
-import type { MapRouteSegment } from "@/hooks/useTripRouteMap";
+import type { MapRouteSegment } from "@/hooks/useTripRouteLegs";
 import type { RouteViewMode } from "@/lib/maps/segment-colors";
 import { isMapsConfigured } from "./MapsProvider";
 import { MapsSetupGuide } from "./MapsSetupGuide";

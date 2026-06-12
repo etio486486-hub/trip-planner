@@ -1,8 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AlertCircle } from "lucide-react";
-import { useTripRouteMap } from "@/hooks/useTripRouteMap";
+import {
+  buildMapSegments,
+  useTripRouteLegs,
+} from "@/hooks/useTripRouteLegs";
 import { useTripRealtime } from "@/hooks/useTripRealtime";
 import type { RouteViewMode } from "@/lib/maps/segment-colors";
 import { DeviceIdentityGuard } from "./DeviceIdentityGuard";
@@ -43,9 +46,10 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
     currentUserId,
   } = useTripRealtime({ tripId, selectedDayNumber });
 
-  const { segments: routeSegments, loading: routesLoading } = useTripRouteMap(
-    places,
-    routeViewMode
+  const { legs: routeLegs, loading: routesLoading } = useTripRouteLegs(places);
+  const routeSegments = useMemo(
+    () => buildMapSegments(routeLegs, places, routeViewMode),
+    [routeLegs, places, routeViewMode]
   );
 
   const handleDeletePlace = async (id: string) => {
@@ -137,8 +141,7 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
             creatorId={trip?.creator_id ?? null}
             onUpdateDisplayName={updateDisplayName}
             onKickMember={handleKickMember}
-            routeViewMode={routeViewMode}
-            onRouteViewModeChange={setRouteViewMode}
+            routeLegs={routeLegs}
             sidebarTab={sidebarTab}
             onSidebarTabChange={setSidebarTab}
           />

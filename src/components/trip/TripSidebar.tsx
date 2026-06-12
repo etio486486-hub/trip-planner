@@ -10,7 +10,7 @@ import { MemberList } from "./MemberList";
 import { PlaceList } from "./PlaceList";
 import { PlaceSearch } from "./PlaceSearch";
 import { TripMenuTabs, type SidebarTab } from "./TripMenuTabs";
-import type { RouteViewMode } from "@/lib/maps/segment-colors";
+import type { SegmentLegState } from "@/hooks/useTripRouteLegs";
 import type { DailyPlan, Place, PresenceUser, Trip, TripMember } from "@/types/database";
 import type { PlaceInput } from "@/types/database";
 
@@ -40,8 +40,7 @@ type TripSidebarProps = {
   creatorId: string | null;
   onUpdateDisplayName: (name: string) => Promise<void>;
   onKickMember: (memberId: string) => Promise<void>;
-  routeViewMode: RouteViewMode;
-  onRouteViewModeChange: (mode: RouteViewMode) => void;
+  routeLegs: SegmentLegState[];
   sidebarTab: SidebarTab;
   onSidebarTabChange: (tab: SidebarTab) => void;
 };
@@ -68,8 +67,7 @@ export function TripSidebar({
   creatorId,
   onUpdateDisplayName,
   onKickMember,
-  routeViewMode,
-  onRouteViewModeChange,
+  routeLegs,
   sidebarTab,
   onSidebarTabChange,
 }: TripSidebarProps) {
@@ -112,8 +110,7 @@ export function TripSidebar({
                   onSelectPlace={onSelectPlace}
                   onReorder={onReorderPlaces}
                   onDelete={onDeletePlace}
-                  routeViewMode={routeViewMode}
-                  onRouteViewModeChange={onRouteViewModeChange}
+                  routeLegs={routeLegs}
                 />
               </div>
             )}

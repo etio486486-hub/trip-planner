@@ -9,22 +9,18 @@ import {
   MessageCircle,
   Train,
 } from "lucide-react";
-import { useRouteLeg } from "@/hooks/useRouteLeg";
+import type { SegmentLegState } from "@/hooks/useTripRouteLegs";
 import {
   getSegmentColor,
   ROUTE_MODE_LABELS,
   type RouteViewMode,
 } from "@/lib/maps/segment-colors";
 import { toKoreanReading } from "@/lib/japanese-reading";
-import type { Place } from "@/types/database";
 
 type RouteSegmentInfoProps = {
-  from: Place;
-  to: Place;
+  leg: SegmentLegState;
   fromIndex: number;
   toIndex: number;
-  routeViewMode: RouteViewMode;
-  onRouteViewModeChange: (mode: RouteViewMode) => void;
 };
 
 function InfoRow({
@@ -99,18 +95,13 @@ function formatYen(yen: number | null): string | null {
 }
 
 export function RouteSegmentInfo({
-  from,
-  to,
+  leg,
   fromIndex,
   toIndex,
-  routeViewMode,
-  onRouteViewModeChange,
 }: RouteSegmentInfoProps) {
-  const { distance, taxi, transit, walking, loading, error } = useRouteLeg(
-    from,
-    to
-  );
+  const [segmentMode, setSegmentMode] = useState<RouteViewMode>("DRIVE");
 
+  const { distance, taxi, transit, walking, loading, error } = leg;
   const segmentColor = getSegmentColor(fromIndex);
 
   return (
@@ -121,15 +112,18 @@ export function RouteSegmentInfo({
       <div className="mb-2 flex items-center justify-between gap-2">
         <p className="text-[11px] font-semibold" style={{ color: segmentColor }}>
           {fromIndex + 1}번 → {toIndex + 1}번 이동
+          <span className="ml-1 font-normal text-zinc-400">
+            ({leg.fromName} → {leg.toName})
+          </span>
         </p>
         <div className="flex gap-0.5">
           {(["WALK", "DRIVE", "TRANSIT"] as RouteViewMode[]).map((m) => (
             <button
               key={m}
               type="button"
-              onClick={() => onRouteViewModeChange(m)}
+              onClick={() => setSegmentMode(m)}
               className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
-                routeViewMode === m
+                segmentMode === m
                   ? "bg-blue-600 text-white"
                   : "bg-white text-zinc-500 ring-1 ring-zinc-200"
               }`}
@@ -155,21 +149,21 @@ export function RouteSegmentInfo({
             </p>
           )}
 
-          {(routeViewMode === "DRIVE" || routeViewMode === "WALK") && (
+          {(segmentMode === "DRIVE" || segmentMode === "WALK") && (
             <div className="rounded-md bg-white px-2.5 py-2 shadow-sm">
               <div className="mb-1 flex items-center gap-1 text-[11px] font-semibold text-zinc-700">
-                {routeViewMode === "DRIVE" ? (
+                {segmentMode === "DRIVE" ? (
                   <Car className="h-3 w-3" />
                 ) : (
                   <Footprints className="h-3 w-3" />
                 )}
-                {ROUTE_MODE_LABELS[routeViewMode]} 경로 (도로 따라감)
+                {ROUTE_MODE_LABELS[segmentMode]} 경로 (도로 따라감)
               </div>
               <InfoRow
                 label="시간:"
-                value={routeViewMode === "DRIVE" ? taxi.duration : walking}
+                value={segmentMode === "DRIVE" ? taxi.duration : walking}
               />
-              {routeViewMode === "DRIVE" && (
+              {segmentMode === "DRIVE" && (
                 <>
                   <InfoRow label="예상 요금:" value={formatYen(taxi.fareYen)} />
                   {taxi.phraseJa && (
@@ -183,7 +177,7 @@ export function RouteSegmentInfo({
             </div>
           )}
 
-          {routeViewMode === "TRANSIT" && (
+          {segmentMode === "TRANSIT" && (
             <div className="rounded-md bg-white px-2.5 py-2 shadow-sm">
               <div className="mb-1 flex items-center gap-1 text-[11px] font-semibold text-zinc-700">
                 <Train className="h-3 w-3" />
