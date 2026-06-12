@@ -1,45 +1,35 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { computeRoute } from "@/lib/maps/routes-api";
+import {
+  computeRouteLegDetails,
+  type RouteLegDetails,
+} from "@/lib/maps/routes-api";
 import type { Place } from "@/types/database";
 
 function isMapsConfigured(): boolean {
   return (process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "").startsWith("AIza");
 }
 
-export type RouteLegResult = {
-  distance: string | null;
-  taxi: string | null;
-  transit: string | null;
-  walking: string | null;
+export type RouteLegResult = RouteLegDetails & {
   loading: boolean;
   error: string | null;
 };
 
 const EMPTY: RouteLegResult = {
   distance: null,
-  taxi: null,
+  distanceMeters: null,
+  taxi: {
+    duration: null,
+    fareYen: null,
+    phraseJa: "",
+    phraseKo: "",
+  },
   transit: null,
   walking: null,
   loading: false,
   error: null,
 };
-
-async function safeCompute(
-  origin: { lat: number; lng: number },
-  destination: { lat: number; lng: number },
-  mode: "DRIVE" | "TRANSIT" | "WALK"
-) {
-  try {
-    return await computeRoute(origin, destination, mode);
-  } catch (err) {
-    if (err instanceof Error && err.message === "ROUTES_API_DISABLED") {
-      throw err;
-    }
-    return null;
-  }
-}
 
 export function useRouteLeg(
   from: Place | null,
@@ -61,22 +51,27 @@ export function useRouteLeg(
 
     const load = async () => {
       try {
-        const [drive, walk, transit] = await Promise.all([
-          safeCompute(origin, destination, "DRIVE"),
-          safeCompute(origin, destination, "WALK"),
-          safeCompute(origin, destination, "TRANSIT"),
-        ]);
+        const details = await computeRouteLegDetails(
+          origin,
+          destination,
+          to.name
+        );
 
         if (cancelled) return;
 
-        const hasAny = drive || walk || transit;
+        if (!details) {
+          setResult({
+            ...EMPTY,
+            loading: false,
+            error: "경로 정보를 불러올 수 없습니다",
+          });
+          return;
+        }
+
         setResult({
-          distance: drive?.distance ?? walk?.distance ?? transit?.distance ?? null,
-          taxi: drive?.duration ?? null,
-          transit: transit?.duration ?? null,
-          walking: walk?.duration ?? null,
+          ...details,
           loading: false,
-          error: hasAny ? null : "경로 정보를 불러올 수 없습니다",
+          error: null,
         });
       } catch (err) {
         if (cancelled) return;
@@ -106,6 +101,7 @@ export function useRouteLeg(
     to?.id,
     to?.latitude,
     to?.longitude,
+    to?.name,
   ]);
 
   return result;

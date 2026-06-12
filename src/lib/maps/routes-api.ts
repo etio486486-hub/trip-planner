@@ -2,14 +2,48 @@ type LatLng = { lat: number; lng: number };
 
 type TravelMode = "DRIVE" | "TRANSIT" | "WALK";
 
+type LocalizedText = { text?: string };
+
+type Money = {
+  currencyCode?: string;
+  units?: string;
+  nanos?: number;
+};
+
+type TransitStop = { name?: string };
+
+type RouteStep = {
+  travelMode?: string;
+  transitDetails?: {
+    headsign?: string;
+    transitLine?: { name?: string; nameShort?: string };
+    stopDetails?: {
+      departureStop?: TransitStop;
+      arrivalStop?: TransitStop;
+    };
+    localizedValues?: {
+      transitFare?: LocalizedText;
+    };
+  };
+};
+
+type RouteLeg = {
+  steps?: RouteStep[];
+};
+
 type RouteData = {
   distanceMeters?: number;
   duration?: string;
   staticDuration?: string;
+  legs?: RouteLeg[];
+  travelAdvisory?: {
+    transitFare?: Money | LocalizedText;
+  };
   localizedValues?: {
-    distance?: { text?: string };
-    duration?: { text?: string };
-    staticDuration?: { text?: string };
+    distance?: LocalizedText;
+    duration?: LocalizedText;
+    staticDuration?: LocalizedText;
+    transitFare?: LocalizedText;
   };
 };
 
@@ -20,6 +54,30 @@ type RouteResponse = {
 export type RouteInfo = {
   distance: string | null;
   duration: string | null;
+  distanceMeters: number | null;
+};
+
+export type TransitDetails = {
+  duration: string | null;
+  fareText: string | null;
+  fareYen: number | null;
+  boardStop: string | null;
+  alightStop: string | null;
+  lineName: string | null;
+  headsign: string | null;
+};
+
+export type RouteLegDetails = {
+  distance: string | null;
+  distanceMeters: number | null;
+  taxi: {
+    duration: string | null;
+    fareYen: number | null;
+    phraseJa: string;
+    phraseKo: string;
+  };
+  transit: TransitDetails | null;
+  walking: string | null;
 };
 
 function getApiKey(): string {
@@ -57,6 +115,43 @@ function formatDistanceKo(meters: number): string {
   return `${meters}m`;
 }
 
+function parseMoney(m?: Money): number | null {
+  if (!m?.units) return null;
+  const units = Number(m.units);
+  if (!Number.isFinite(units)) return null;
+  const nanos = m.nanos ?? 0;
+  return Math.round(units + nanos / 1e9);
+}
+
+function formatFareText(yen: number | null, text?: string | null): string | null {
+  if (text) return text;
+  if (yen == null) return null;
+  return `약 ¥${yen.toLocaleString("ja-JP")}`;
+}
+
+/** 후쿠오카·일본 일반 택시 요금 추정 */
+export function estimateJapanTaxiFare(meters: number): number {
+  const initialDistance = 1674;
+  const initialFare = 620;
+  const unitDistance = 226;
+  const unitFare = 100;
+  if (meters <= initialDistance) return initialFare;
+  const extra = meters - initialDistance;
+  const units = Math.ceil(extra / unitDistance);
+  return initialFare + units * unitFare;
+}
+
+export function buildTaxiPhrases(destinationName: string): {
+  phraseJa: string;
+  phraseKo: string;
+} {
+  const name = destinationName.trim() || "目的地";
+  return {
+    phraseJa: `「${name}までお願いします」`,
+    phraseKo: `택시 기사님께: "${name}까지 가주세요" (일본어로는 위 문장을 보여주세요)`,
+  };
+}
+
 function extractRouteInfo(route: RouteData | undefined): RouteInfo {
   const localized = route?.localizedValues;
   const durationText =
@@ -75,11 +170,82 @@ function extractRouteInfo(route: RouteData | undefined): RouteInfo {
       ? formatDistanceKo(route.distanceMeters)
       : null);
 
-  return { distance: distanceText, duration: durationText };
+  return {
+    distance: distanceText,
+    duration: durationText,
+    distanceMeters: route?.distanceMeters ?? null,
+  };
+}
+
+function extractTransitDetails(route: RouteData | undefined): TransitDetails | null {
+  if (!route) return null;
+
+  const base = extractRouteInfo(route);
+  const steps = route.legs?.flatMap((leg) => leg.steps ?? []) ?? [];
+  const transitSteps = steps.filter(
+    (s) => s.travelMode === "TRANSIT" && s.transitDetails
+  );
+
+  if (transitSteps.length === 0 && !base.duration) return null;
+
+  const first = transitSteps[0]?.transitDetails;
+  const last = transitSteps[transitSteps.length - 1]?.transitDetails;
+
+  const boardStop =
+    first?.stopDetails?.departureStop?.name ??
+    first?.stopDetails?.arrivalStop?.name ??
+    null;
+  const alightStop =
+    last?.stopDetails?.arrivalStop?.name ??
+    last?.stopDetails?.departureStop?.name ??
+    null;
+
+  const advisoryFare = route.travelAdvisory?.transitFare;
+  let fareYen: number | null = null;
+  let fareText: string | null = null;
+
+  if (advisoryFare && "text" in advisoryFare && advisoryFare.text) {
+    fareText = advisoryFare.text;
+  } else if (advisoryFare && "units" in advisoryFare) {
+    fareYen = parseMoney(advisoryFare as Money);
+    fareText = formatFareText(fareYen, null);
+  }
+
+  if (!fareText) {
+    fareText = route.localizedValues?.transitFare?.text ?? null;
+  }
+
+  if (!fareYen && fareText) {
+    const match = fareText.replace(/,/g, "").match(/(\d+)/);
+    if (match) fareYen = Number(match[1]);
+  }
+
+  const lineNames = [
+    ...new Set(
+      transitSteps
+        .map(
+          (s) =>
+            s.transitDetails?.transitLine?.nameShort ??
+            s.transitDetails?.transitLine?.name
+        )
+        .filter(Boolean)
+    ),
+  ];
+
+  return {
+    duration: base.duration,
+    fareText,
+    fareYen,
+    boardStop,
+    alightStop,
+    lineName: lineNames.join(" → ") || null,
+    headsign: first?.headsign ?? null,
+  };
 }
 
 async function requestRoute(
-  body: Record<string, unknown>
+  body: Record<string, unknown>,
+  fieldMask: string
 ): Promise<RouteResponse | null> {
   const apiKey = getApiKey();
   if (!apiKey.startsWith("AIza")) return null;
@@ -91,8 +257,7 @@ async function requestRoute(
       headers: {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": apiKey,
-        "X-Goog-FieldMask":
-          "routes.duration,routes.staticDuration,routes.distanceMeters,routes.localizedValues",
+        "X-Goog-FieldMask": fieldMask,
       },
       body: JSON.stringify(body),
     }
@@ -134,40 +299,18 @@ function buildBaseBody(
   };
 }
 
-async function computeDriveRoute(
-  origin: LatLng,
-  destination: LatLng
-): Promise<RouteInfo | null> {
-  const response = await requestRoute({
-    ...buildBaseBody(origin, destination, "DRIVE"),
-    routingPreference: "TRAFFIC_UNAWARE",
-  });
+const BASIC_MASK =
+  "routes.duration,routes.staticDuration,routes.distanceMeters,routes.localizedValues";
 
-  return extractRouteInfo(response?.routes?.[0]);
-}
-
-async function computeTransitRoute(
-  origin: LatLng,
-  destination: LatLng
-): Promise<RouteInfo | null> {
-  const response = await requestRoute({
-    ...buildBaseBody(origin, destination, "TRANSIT"),
-    departureTime: new Date().toISOString(),
-  });
-
-  return extractRouteInfo(response?.routes?.[0]);
-}
-
-async function computeWalkRoute(
-  origin: LatLng,
-  destination: LatLng
-): Promise<RouteInfo | null> {
-  const response = await requestRoute({
-    ...buildBaseBody(origin, destination, "WALK"),
-  });
-
-  return extractRouteInfo(response?.routes?.[0]);
-}
+const TRANSIT_MASK = [
+  BASIC_MASK,
+  "routes.legs.steps.travelMode",
+  "routes.legs.steps.transitDetails",
+  "routes.legs.steps.transitDetails.stopDetails",
+  "routes.legs.steps.transitDetails.transitLine",
+  "routes.travelAdvisory.transitFare",
+  "routes.localizedValues.transitFare",
+].join(",");
 
 export async function computeRoute(
   origin: LatLng,
@@ -178,14 +321,72 @@ export async function computeRoute(
     return null;
   }
 
-  switch (travelMode) {
-    case "DRIVE":
-      return computeDriveRoute(origin, destination);
-    case "TRANSIT":
-      return computeTransitRoute(origin, destination);
-    case "WALK":
-      return computeWalkRoute(origin, destination);
-    default:
-      return null;
+  const body: Record<string, unknown> = {
+    ...buildBaseBody(origin, destination, travelMode),
+  };
+
+  if (travelMode === "DRIVE") {
+    body.routingPreference = "TRAFFIC_UNAWARE";
   }
+  if (travelMode === "TRANSIT") {
+    body.departureTime = new Date().toISOString();
+  }
+
+  const mask = travelMode === "TRANSIT" ? TRANSIT_MASK : BASIC_MASK;
+  const response = await requestRoute(body, mask);
+  return extractRouteInfo(response?.routes?.[0]);
+}
+
+export async function computeRouteLegDetails(
+  origin: LatLng,
+  destination: LatLng,
+  destinationName: string
+): Promise<RouteLegDetails | null> {
+  if (!isValidCoord(origin) || !isValidCoord(destination)) {
+    return null;
+  }
+
+  const phrases = buildTaxiPhrases(destinationName);
+
+  const [driveRes, walkRes, transitRes] = await Promise.all([
+    requestRoute(
+      {
+        ...buildBaseBody(origin, destination, "DRIVE"),
+        routingPreference: "TRAFFIC_UNAWARE",
+      },
+      BASIC_MASK
+    ),
+    requestRoute(buildBaseBody(origin, destination, "WALK"), BASIC_MASK),
+    requestRoute(
+      {
+        ...buildBaseBody(origin, destination, "TRANSIT"),
+        departureTime: new Date().toISOString(),
+      },
+      TRANSIT_MASK
+    ),
+  ]);
+
+  const drive = extractRouteInfo(driveRes?.routes?.[0]);
+  const walk = extractRouteInfo(walkRes?.routes?.[0]);
+  const transit = extractTransitDetails(transitRes?.routes?.[0]);
+
+  const distanceMeters =
+    drive.distanceMeters ?? walk.distanceMeters ?? transitRes?.routes?.[0]?.distanceMeters ?? null;
+
+  const taxiFareYen =
+    distanceMeters != null ? estimateJapanTaxiFare(distanceMeters) : null;
+
+  return {
+    distance:
+      drive.distance ?? walk.distance ?? (distanceMeters != null ? formatDistanceKo(distanceMeters) : null),
+    distanceMeters,
+    taxi: {
+      duration: drive.duration,
+      fareYen: taxiFareYen,
+      phraseJa: phrases.phraseJa,
+      phraseKo: phrases.phraseKo,
+    },
+    transit,
+    walking: walk.duration,
+  };
 }
