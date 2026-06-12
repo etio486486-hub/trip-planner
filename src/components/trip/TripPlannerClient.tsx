@@ -5,6 +5,7 @@ import { AlertCircle } from "lucide-react";
 import {
   buildMapSegments,
   getSegmentModeKey,
+  isSegmentVisible,
   useTripRouteLegs,
 } from "@/hooks/useTripRouteLegs";
 import { useTripRealtime } from "@/hooks/useTripRealtime";
@@ -25,6 +26,9 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
   const [focusedPlaceId, setFocusedPlaceId] = useState<string | null>(null);
   const [segmentModes, setSegmentModes] = useState<
     Record<string, RouteViewMode>
+  >({});
+  const [segmentVisibility, setSegmentVisibility] = useState<
+    Record<string, boolean>
   >({});
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("itinerary");
 
@@ -55,6 +59,14 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
     [routeLegs, places, segmentModes]
   );
 
+  const visibleRouteSegments = useMemo(
+    () =>
+      routeSegments.filter((seg) =>
+        isSegmentVisible(segmentVisibility, seg.fromId, seg.toId)
+      ),
+    [routeSegments, segmentVisibility]
+  );
+
   const handleSegmentModeChange = (
     fromId: string,
     toId: string,
@@ -64,6 +76,30 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
       ...prev,
       [getSegmentModeKey(fromId, toId)]: mode,
     }));
+  };
+
+  const handleSegmentVisibilityChange = (
+    fromId: string,
+    toId: string,
+    visible: boolean
+  ) => {
+    setSegmentVisibility((prev) => ({
+      ...prev,
+      [getSegmentModeKey(fromId, toId)]: visible,
+    }));
+  };
+
+  const handleShowOnlySegment = (fromId: string, toId: string) => {
+    const next: Record<string, boolean> = {};
+    for (const leg of routeLegs) {
+      const key = getSegmentModeKey(leg.fromId, leg.toId);
+      next[key] = leg.fromId === fromId && leg.toId === toId;
+    }
+    setSegmentVisibility(next);
+  };
+
+  const handleShowAllSegments = () => {
+    setSegmentVisibility({});
   };
 
   const handleDeletePlace = async (id: string) => {
@@ -158,6 +194,10 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
             routeLegs={routeLegs}
             segmentModes={segmentModes}
             onSegmentModeChange={handleSegmentModeChange}
+            segmentVisibility={segmentVisibility}
+            onSegmentVisibilityChange={handleSegmentVisibilityChange}
+            onShowOnlySegment={handleShowOnlySegment}
+            onShowAllSegments={handleShowAllSegments}
             sidebarTab={sidebarTab}
             onSidebarTabChange={setSidebarTab}
           />
@@ -165,7 +205,7 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
             <TripMap
               places={places}
               focusedPlaceId={focusedPlaceId}
-              routeSegments={routeSegments}
+              routeSegments={visibleRouteSegments}
               routesLoading={routesLoading}
             />
           </main>

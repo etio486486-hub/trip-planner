@@ -24,6 +24,8 @@ export type SegmentLegState = RouteLegDetails & {
 
 export type MapRouteSegment = {
   index: number;
+  fromId: string;
+  toId: string;
   color: string;
   path: LatLng[];
   fromName: string;
@@ -81,6 +83,15 @@ export function getSegmentMode(
   return segmentModes[getSegmentModeKey(fromId, toId)] ?? "DRIVE";
 }
 
+/** 기본값 true — 명시적으로 false일 때만 숨김 */
+export function isSegmentVisible(
+  segmentVisibility: Record<string, boolean>,
+  fromId: string,
+  toId: string
+): boolean {
+  return segmentVisibility[getSegmentModeKey(fromId, toId)] !== false;
+}
+
 export function buildMapSegments(
   legs: SegmentLegState[],
   places: Place[],
@@ -102,6 +113,8 @@ export function buildMapSegments(
 
     return {
       index: leg.segmentIndex,
+      fromId: leg.fromId,
+      toId: leg.toId,
       color: getSegmentColor(leg.segmentIndex),
       path,
       fromName: leg.fromName,

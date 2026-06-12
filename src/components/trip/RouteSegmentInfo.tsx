@@ -4,6 +4,8 @@ import { useState } from "react";
 import {
   Car,
   Copy,
+  Eye,
+  EyeOff,
   Footprints,
   Loader2,
   MessageCircle,
@@ -23,6 +25,9 @@ type RouteSegmentInfoProps = {
   toIndex: number;
   segmentMode: RouteViewMode;
   onSegmentModeChange: (mode: RouteViewMode) => void;
+  segmentVisible: boolean;
+  onSegmentVisibilityChange: (visible: boolean) => void;
+  onShowOnlySegment: () => void;
 };
 
 function InfoRow({
@@ -102,22 +107,59 @@ export function RouteSegmentInfo({
   toIndex,
   segmentMode,
   onSegmentModeChange,
+  segmentVisible,
+  onSegmentVisibilityChange,
+  onShowOnlySegment,
 }: RouteSegmentInfoProps) {
   const { distance, taxi, transit, walking, loading, error } = leg;
   const segmentColor = getSegmentColor(fromIndex);
 
   return (
     <div
-      className="mx-1 rounded-lg border border-dashed bg-zinc-50 px-3 py-2.5"
+      className={`mx-1 rounded-lg border border-dashed px-3 py-2.5 transition-opacity ${
+        segmentVisible ? "bg-zinc-50 opacity-100" : "bg-zinc-100/80 opacity-60"
+      }`}
       style={{ borderColor: segmentColor }}
     >
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <p className="text-[11px] font-semibold" style={{ color: segmentColor }}>
-          {fromIndex + 1}번 → {toIndex + 1}번 이동
-          <span className="ml-1 font-normal text-zinc-400">
-            ({leg.fromName} → {leg.toName})
-          </span>
-        </p>
+      <div className="mb-2 flex flex-col gap-1.5">
+        <div className="flex items-start justify-between gap-2">
+          <p
+            className="text-[11px] font-semibold"
+            style={{ color: segmentColor }}
+          >
+            {fromIndex + 1}번 → {toIndex + 1}번 이동
+            <span className="ml-1 font-normal text-zinc-400">
+              ({leg.fromName} → {leg.toName})
+            </span>
+          </p>
+          <div className="flex shrink-0 gap-0.5">
+            <button
+              type="button"
+              onClick={() => onSegmentVisibilityChange(!segmentVisible)}
+              title={segmentVisible ? "지도에서 숨기기" : "지도에 표시"}
+              className={`flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                segmentVisible
+                  ? "bg-white text-zinc-600 ring-1 ring-zinc-200"
+                  : "bg-zinc-200 text-zinc-500"
+              }`}
+            >
+              {segmentVisible ? (
+                <Eye className="h-3 w-3" />
+              ) : (
+                <EyeOff className="h-3 w-3" />
+              )}
+              {segmentVisible ? "표시" : "숨김"}
+            </button>
+            <button
+              type="button"
+              onClick={onShowOnlySegment}
+              title="이 구간만 지도에 표시"
+              className="rounded bg-white px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 ring-1 ring-zinc-200 hover:bg-zinc-100"
+            >
+              이 구간만
+            </button>
+          </div>
+        </div>
         <div className="flex gap-0.5">
           {(["WALK", "DRIVE", "TRANSIT"] as RouteViewMode[]).map((m) => (
             <button

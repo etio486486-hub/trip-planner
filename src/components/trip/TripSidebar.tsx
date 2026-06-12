@@ -48,6 +48,14 @@ type TripSidebarProps = {
     toId: string,
     mode: RouteViewMode
   ) => void;
+  segmentVisibility: Record<string, boolean>;
+  onSegmentVisibilityChange: (
+    fromId: string,
+    toId: string,
+    visible: boolean
+  ) => void;
+  onShowOnlySegment: (fromId: string, toId: string) => void;
+  onShowAllSegments: () => void;
   sidebarTab: SidebarTab;
   onSidebarTabChange: (tab: SidebarTab) => void;
 };
@@ -77,6 +85,10 @@ export function TripSidebar({
   routeLegs,
   segmentModes,
   onSegmentModeChange,
+  segmentVisibility,
+  onSegmentVisibilityChange,
+  onShowOnlySegment,
+  onShowAllSegments,
   sidebarTab,
   onSidebarTabChange,
 }: TripSidebarProps) {
@@ -122,6 +134,10 @@ export function TripSidebar({
                   routeLegs={routeLegs}
                   segmentModes={segmentModes}
                   onSegmentModeChange={onSegmentModeChange}
+                  segmentVisibility={segmentVisibility}
+                  onSegmentVisibilityChange={onSegmentVisibilityChange}
+                  onShowOnlySegment={onShowOnlySegment}
+                  onShowAllSegments={onShowAllSegments}
                 />
               </div>
             )}

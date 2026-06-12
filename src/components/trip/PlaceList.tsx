@@ -19,6 +19,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Trash2 } from "lucide-react";
 import {
   getSegmentMode,
+  isSegmentVisible,
   type SegmentLegState,
 } from "@/hooks/useTripRouteLegs";
 import type { RouteViewMode } from "@/lib/maps/segment-colors";
@@ -39,6 +40,14 @@ type PlaceListProps = {
     toId: string,
     mode: RouteViewMode
   ) => void;
+  segmentVisibility: Record<string, boolean>;
+  onSegmentVisibilityChange: (
+    fromId: string,
+    toId: string,
+    visible: boolean
+  ) => void;
+  onShowOnlySegment: (fromId: string, toId: string) => void;
+  onShowAllSegments: () => void;
 };
 
 function SortablePlaceItem({
@@ -125,7 +134,17 @@ export function PlaceList({
   routeLegs,
   segmentModes,
   onSegmentModeChange,
+  segmentVisibility,
+  onSegmentVisibilityChange,
+  onShowOnlySegment,
+  onShowAllSegments,
 }: PlaceListProps) {
+  const hasHiddenSegment =
+    routeLegs.length > 0 &&
+    routeLegs.some(
+      (leg) =>
+        !isSegmentVisible(segmentVisibility, leg.fromId, leg.toId)
+    );
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, {
@@ -168,6 +187,15 @@ export function PlaceList({
         strategy={verticalListSortingStrategy}
       >
         <div className="flex flex-col gap-2 p-3">
+          {hasHiddenSegment && (
+            <button
+              type="button"
+              onClick={onShowAllSegments}
+              className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-[11px] font-medium text-zinc-600 hover:bg-zinc-100"
+            >
+              전체 경로 표시 (숨긴 구간 모두 보이기)
+            </button>
+          )}
           {places.map((place, index) => (
             <div key={place.id} className="flex flex-col gap-2">
               <SortablePlaceItem
@@ -194,6 +222,24 @@ export function PlaceList({
                       routeLegs[index].fromId,
                       routeLegs[index].toId,
                       mode
+                    )
+                  }
+                  segmentVisible={isSegmentVisible(
+                    segmentVisibility,
+                    routeLegs[index].fromId,
+                    routeLegs[index].toId
+                  )}
+                  onSegmentVisibilityChange={(visible) =>
+                    onSegmentVisibilityChange(
+                      routeLegs[index].fromId,
+                      routeLegs[index].toId,
+                      visible
+                    )
+                  }
+                  onShowOnlySegment={() =>
+                    onShowOnlySegment(
+                      routeLegs[index].fromId,
+                      routeLegs[index].toId
                     )
                   }
                 />
