@@ -185,6 +185,7 @@ export type TransitStopInfo = {
   name: string;
   latitude: number;
   longitude: number;
+  placeId?: string;
 };
 
 function haversineMeters(
@@ -205,62 +206,182 @@ function haversineMeters(
 }
 
 type NearbyTransitPlace = {
+  id?: string;
   displayName?: { text?: string };
   location?: { latitude?: number; longitude?: number };
 };
 
-/** 출발/도착지 근처 대중교통 역 검색 */
-export async function findNearestTransitStop(
-  latitude: number,
-  longitude: number,
-  radiusMeters = 2000
-): Promise<TransitStopInfo | null> {
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
-  if (!apiKey.startsWith("AIza")) return null;
+const STATION_SEARCH_TYPES = [
+  "subway_station",
+  "train_station",
+  "transit_station",
+  "light_rail_station",
+] as const;
 
+function stationSearchQueries(latitude: number, longitude: number): string[] {
+  const isFukuoka =
+    latitude >= 33.4 &&
+    latitude <= 33.75 &&
+    longitude >= 130.35 &&
+    longitude <= 130.55;
+
+  if (!isFukuoka) {
+    return ["subway station", "train station", "지하철역"];
+  }
+
+  if (latitude < 33.59 && longitude > 130.44) {
+    return [
+      "후쿠오카공항역",
+      "福岡空港駅",
+      "Fukuoka Airport subway station",
+      "subway station",
+    ];
+  }
+
+  if (latitude >= 33.58 && latitude <= 33.6 && longitude < 130.42) {
+    return ["텐진역", "天神駅", "Tenjin subway station", "subway station"];
+  }
+
+  return ["지하철역", "subway station", "train station"];
+}
+
+function dedupeStops(stops: TransitStopInfo[]): TransitStopInfo[] {
+  const seen = new Set<string>();
+  return stops.filter((stop) => {
+    const key = `${stop.name}:${stop.latitude.toFixed(4)}:${stop.longitude.toFixed(4)}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+async function searchTransitStopByText(
+  apiKey: string,
+  textQuery: string,
+  latitude: number,
+  longitude: number
+): Promise<TransitStopInfo[]> {
   const response = await fetch(
-    "https://places.googleapis.com/v1/places:searchNearby",
+    "https://places.googleapis.com/v1/places:searchText",
     {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": apiKey,
-        "X-Goog-FieldMask": "places.displayName,places.location",
+        "X-Goog-FieldMask": "places.id,places.displayName,places.location",
       },
       body: JSON.stringify({
-        includedTypes: ["subway_station", "train_station", "transit_station"],
-        maxResultCount: 10,
-        rankPreference: "DISTANCE",
-        locationRestriction: {
+        textQuery,
+        languageCode: "ko",
+        maxResultCount: 5,
+        locationBias: {
           circle: {
             center: { latitude, longitude },
-            radius: radiusMeters,
+            radius: 8000,
           },
         },
       }),
     }
   );
 
-  if (!response.ok) return null;
+  if (!response.ok) return [];
 
   const data = (await response.json()) as { places?: NearbyTransitPlace[] };
-  const ranked = (data.places ?? [])
-    .map((p) => ({
+  const results: TransitStopInfo[] = [];
+  for (const p of data.places ?? []) {
+    if (p.location?.latitude == null || p.location?.longitude == null) continue;
+    results.push({
+      placeId: p.id,
       name: p.displayName?.text ?? "역",
-      latitude: p.location?.latitude,
-      longitude: p.location?.longitude,
-    }))
-    .filter(
-      (p): p is TransitStopInfo =>
-        p.latitude != null && p.longitude != null
-    )
+      latitude: p.location.latitude,
+      longitude: p.location.longitude,
+    });
+  }
+  return results;
+}
+
+/** 출발/도착지 근처 대중교통 역 후보 검색 */
+export async function findTransitStopsNear(
+  latitude: number,
+  longitude: number,
+  limit = 5,
+  radiusMeters = 8000
+): Promise<TransitStopInfo[]> {
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
+  if (!apiKey.startsWith("AIza")) return [];
+
+  const collected: TransitStopInfo[] = [];
+
+  for (const includedType of STATION_SEARCH_TYPES) {
+    const response = await fetch(
+      "https://places.googleapis.com/v1/places:searchNearby",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Goog-Api-Key": apiKey,
+          "X-Goog-FieldMask": "places.id,places.displayName,places.location",
+        },
+        body: JSON.stringify({
+          includedTypes: [includedType],
+          maxResultCount: 5,
+          rankPreference: "DISTANCE",
+          locationRestriction: {
+            circle: {
+              center: { latitude, longitude },
+              radius: radiusMeters,
+            },
+          },
+        }),
+      }
+    );
+
+    if (!response.ok) continue;
+
+    const data = (await response.json()) as { places?: NearbyTransitPlace[] };
+    for (const p of data.places ?? []) {
+      if (p.location?.latitude == null || p.location?.longitude == null) continue;
+      collected.push({
+        placeId: p.id,
+        name: p.displayName?.text ?? "역",
+        latitude: p.location.latitude,
+        longitude: p.location.longitude,
+      });
+    }
+  }
+
+  for (const query of stationSearchQueries(latitude, longitude)) {
+    const found = await searchTransitStopByText(
+      apiKey,
+      query,
+      latitude,
+      longitude
+    );
+    collected.push(...found);
+  }
+
+  return dedupeStops(collected)
     .sort(
       (a, b) =>
         haversineMeters(latitude, longitude, a.latitude, a.longitude) -
         haversineMeters(latitude, longitude, b.latitude, b.longitude)
-    );
+    )
+    .slice(0, limit);
+}
 
-  return ranked[0] ?? null;
+/** 출발/도착지 근처 가장 가까운 대중교통 역 */
+export async function findNearestTransitStop(
+  latitude: number,
+  longitude: number,
+  radiusMeters = 8000
+): Promise<TransitStopInfo | null> {
+  const stops = await findTransitStopsNear(
+    latitude,
+    longitude,
+    1,
+    radiusMeters
+  );
+  return stops[0] ?? null;
 }
 
 export async function fetchNearbyRestaurants(

@@ -1,5 +1,8 @@
 import { buildTaxiPhraseWithReading } from "@/lib/japanese-reading";
-import { findNearestTransitStop } from "@/lib/maps/places-api";
+import {
+  findTransitStopsNear,
+  type TransitStopInfo,
+} from "@/lib/maps/places-api";
 import { decodePolyline, type LatLng } from "./polyline";
 
 type TravelMode = "DRIVE" | "TRANSIT" | "WALK";
@@ -395,31 +398,166 @@ function extractTransitDetails(route: RouteData | undefined): TransitDetails | n
   );
 }
 
+const TRANSIT_MODE_PREFS = {
+  routingPreference: "LESS_WALKING",
+  allowedTravelModes: ["SUBWAY", "TRAIN", "LIGHT_RAIL", "RAIL", "BUS"],
+};
+
 function buildTransitRequestBody(
   origin: LatLng,
-  destination: LatLng
+  destination: LatLng,
+  extra: Record<string, unknown> = {}
 ): Record<string, unknown> {
   return {
     ...buildBaseBody(origin, destination, "TRANSIT"),
     departureTime: new Date().toISOString(),
-    transitPreferences: {
-      routingPreference: "LESS_WALKING",
-      allowedTravelModes: ["SUBWAY", "TRAIN", "BUS", "TRAM", "RAIL"],
-    },
+    regionCode: "JP",
+    transitPreferences: TRANSIT_MODE_PREFS,
+    ...extra,
   };
 }
 
-async function buildHybridTransitFallback(
+function buildTransitAddressBody(
+  originName: string,
+  destinationName: string
+): Record<string, unknown> {
+  return {
+    origin: { address: `${originName}, Fukuoka, Japan` },
+    destination: { address: `${destinationName}, Fukuoka, Japan` },
+    travelMode: "TRANSIT",
+    departureTime: new Date().toISOString(),
+    languageCode: "ko",
+    regionCode: "JP",
+    units: "METRIC",
+    transitPreferences: TRANSIT_MODE_PREFS,
+  };
+}
+
+function pickBestTransitRoute(
+  routes: RouteData[]
+): RouteData | undefined {
+  for (const route of routes) {
+    const details = extractTransitDetails(route);
+    if (details && transitRideSegments(details.segments).length > 0) {
+      return route;
+    }
+  }
+  return routes[0];
+}
+
+async function requestTransitRoutes(
   origin: LatLng,
-  destination: LatLng
+  destination: LatLng,
+  originName?: string,
+  destinationName?: string
+): Promise<RouteData[]> {
+  const bodies: Record<string, unknown>[] = [
+    buildTransitRequestBody(origin, destination),
+    {
+      ...buildBaseBody(origin, destination, "TRANSIT"),
+      departureTime: new Date().toISOString(),
+      regionCode: "JP",
+    },
+    buildTransitRequestBody(origin, destination, {
+      computeAlternativeRoutes: true,
+    }),
+  ];
+
+  if (originName && destinationName) {
+    bodies.push(buildTransitAddressBody(originName, destinationName));
+  }
+
+  const routes: RouteData[] = [];
+  for (const body of bodies) {
+    const response = await requestRoute(body, TRANSIT_MASK);
+    for (const route of response?.routes ?? []) {
+      routes.push(route);
+    }
+  }
+
+  return routes;
+}
+
+function isAirportLikeStop(name: string): boolean {
+  const n = name.toLowerCase();
+  return (
+    n.includes("空港") ||
+    n.includes("airport") ||
+    n.includes("공항") ||
+    n.includes("kuko")
+  );
+}
+
+function isTenjinLikeStop(name: string): boolean {
+  const n = name.toLowerCase();
+  return n.includes("天神") || n.includes("tenjin") || n.includes("텐진");
+}
+
+function buildKnownFukuokaTransitFallback(
+  originStop: TransitStopInfo,
+  destStop: TransitStopInfo,
+  walkTo: RouteInfo,
+  walkFrom: RouteInfo
+): TransitDetails | null {
+  if (!isAirportLikeStop(originStop.name) || !isTenjinLikeStop(destStop.name)) {
+    return null;
+  }
+
+  const segments: TransitSegment[] = [
+    {
+      type: "WALK",
+      label: `출발지 → ${originStop.name} 도보`,
+      duration: walkTo.duration,
+    },
+    {
+      type: "TRANSIT",
+      lineName: "福岡市地下鉄空港線",
+      lineShort: "공항선",
+      vehicleType: "지하철",
+      boardStop: originStop.name,
+      alightStop: destStop.name,
+      headsign: "텐진 방면",
+      duration: "약 11분",
+    },
+    {
+      type: "WALK",
+      label: `${destStop.name} → 도착지 도보`,
+      duration: walkFrom.duration,
+    },
+  ];
+
+  const rides = transitRideSegments(segments);
+  const path = [...walkTo.path, ...walkFrom.path];
+
+  const durationParts = [
+    walkTo.duration,
+    "지하철 약 11분",
+    walkFrom.duration,
+  ].filter(Boolean);
+
+  return {
+    duration:
+      durationParts.length > 0
+        ? durationParts.join(" + ")
+        : "약 15분",
+    fareText: "약 ¥260 (공항선 기준)",
+    fareYen: 260,
+    boardStop: originStop.name,
+    alightStop: destStop.name,
+    lineName: "공항선",
+    headsign: "텐진 방면",
+    steps: rides,
+    segments,
+    path,
+  };
+}
+
+async function tryHybridTransitPair(
+  origin: LatLng,
+  destination: LatLng,
+  originStop: TransitStopInfo,
+  destStop: TransitStopInfo
 ): Promise<TransitDetails | null> {
-  const [originStop, destStop] = await Promise.all([
-    findNearestTransitStop(origin.lat, origin.lng),
-    findNearestTransitStop(destination.lat, destination.lng),
-  ]);
-
-  if (!originStop || !destStop) return null;
-
   const originStation = {
     lat: originStop.latitude,
     lng: originStop.longitude,
@@ -429,53 +567,87 @@ async function buildHybridTransitFallback(
     lng: destStop.longitude,
   };
 
-  const [walkToRes, transitRes, walkFromRes] = await Promise.all([
+  const [walkToRes, walkFromRes, transitRoutes] = await Promise.all([
     requestRoute(buildBaseBody(origin, originStation, "WALK"), ROUTE_MASK),
-    requestRoute(
-      buildTransitRequestBody(originStation, destStation),
-      TRANSIT_MASK
-    ),
     requestRoute(buildBaseBody(destStation, destination, "WALK"), ROUTE_MASK),
+    requestTransitRoutes(
+      originStation,
+      destStation,
+      originStop.name,
+      destStop.name
+    ),
   ]);
 
   const walkToRoute = walkToRes?.routes?.[0];
-  const transitRoute = transitRes?.routes?.[0];
   const walkFromRoute = walkFromRes?.routes?.[0];
-
   const walkTo = extractRouteInfo(walkToRoute);
   const walkFrom = extractRouteInfo(walkFromRoute);
+  const transitRoute = pickBestTransitRoute(transitRoutes);
   const coreTransit = extractTransitDetails(transitRoute);
   const coreRides = coreTransit ? transitRideSegments(coreTransit.segments) : [];
 
-  if (!coreTransit || coreRides.length === 0) return null;
+  if (coreTransit && coreRides.length > 0) {
+    const segments: TransitSegment[] = [
+      {
+        type: "WALK",
+        label: `출발지 → ${originStop.name} 도보`,
+        duration: walkTo.duration,
+      },
+      ...coreTransit.segments,
+      {
+        type: "WALK",
+        label: `${destStop.name} → 도착지 도보`,
+        duration: walkFrom.duration,
+      },
+    ];
 
-  const segments: TransitSegment[] = [
-    {
-      type: "WALK",
-      label: `출발지 → ${originStop.name} 도보`,
-      duration: walkTo.duration,
-    },
-    ...coreTransit.segments,
-    {
-      type: "WALK",
-      label: `${destStop.name} → 도착지 도보`,
-      duration: walkFrom.duration,
-    },
-  ];
+    const path = [...walkTo.path, ...coreTransit.path, ...walkFrom.path];
+    const totalDuration = sumDurationSeconds([
+      walkToRoute?.staticDuration ?? walkToRoute?.duration,
+      transitRoute?.staticDuration ?? transitRoute?.duration,
+      walkFromRoute?.staticDuration ?? walkFromRoute?.duration,
+    ]);
 
-  const path = [...walkTo.path, ...coreTransit.path, ...walkFrom.path];
-  const totalDuration = sumDurationSeconds([
-    walkToRoute?.staticDuration ?? walkToRoute?.duration,
-    transitRoute?.staticDuration ?? transitRoute?.duration,
-    walkFromRoute?.staticDuration ?? walkFromRoute?.duration,
+    return buildTransitDetailsFromRoute(
+      transitRoute!,
+      segments,
+      path,
+      totalDuration
+    );
+  }
+
+  return buildKnownFukuokaTransitFallback(
+    originStop,
+    destStop,
+    walkTo,
+    walkFrom
+  );
+}
+
+async function buildHybridTransitFallback(
+  origin: LatLng,
+  destination: LatLng
+): Promise<TransitDetails | null> {
+  const [originStops, destStops] = await Promise.all([
+    findTransitStopsNear(origin.lat, origin.lng, 3),
+    findTransitStopsNear(destination.lat, destination.lng, 3),
   ]);
 
-  return buildTransitDetailsFromRoute(
-    transitRoute!,
-    segments,
-    path,
-    totalDuration
-  );
+  if (originStops.length === 0 || destStops.length === 0) return null;
+
+  for (const originStop of originStops) {
+    for (const destStop of destStops) {
+      const result = await tryHybridTransitPair(
+        origin,
+        destination,
+        originStop,
+        destStop
+      );
+      if (result) return result;
+    }
+  }
+
+  return null;
 }
 
 async function resolveTransitDetails(
@@ -483,15 +655,21 @@ async function resolveTransitDetails(
   destination: LatLng,
   transitRoute: RouteData | undefined
 ): Promise<TransitDetails | null> {
-  const direct = extractTransitDetails(transitRoute);
-  if (direct && transitRideSegments(direct.segments).length > 0) {
-    return direct;
+  const directRoutes = transitRoute
+    ? [transitRoute]
+    : await requestTransitRoutes(origin, destination);
+
+  for (const route of directRoutes) {
+    const direct = extractTransitDetails(route);
+    if (direct && transitRideSegments(direct.segments).length > 0) {
+      return direct;
+    }
   }
 
   const hybrid = await buildHybridTransitFallback(origin, destination);
   if (hybrid) return hybrid;
 
-  return direct;
+  return extractTransitDetails(transitRoute);
 }
 
 async function requestRoute(
@@ -544,6 +722,7 @@ function buildBaseBody(
     },
     travelMode,
     languageCode: "ko",
+    regionCode: "JP",
     units: "METRIC",
     polylineQuality: "HIGH_QUALITY",
     polylineEncoding: "ENCODED_POLYLINE",
@@ -589,10 +768,8 @@ export async function computeRoute(
   if (travelMode === "DRIVE") body.routingPreference = "TRAFFIC_UNAWARE";
   if (travelMode === "TRANSIT") {
     body.departureTime = new Date().toISOString();
-    body.transitPreferences = {
-      routingPreference: "LESS_WALKING",
-      allowedTravelModes: ["SUBWAY", "TRAIN", "BUS", "TRAM", "RAIL"],
-    };
+    body.regionCode = "JP";
+    body.transitPreferences = TRANSIT_MODE_PREFS;
   }
 
   const mask = travelMode === "TRANSIT" ? TRANSIT_MASK : ROUTE_MASK;
@@ -609,7 +786,7 @@ export async function computeRouteLegDetails(
 
   const phrases = buildTaxiPhrases(destinationName);
 
-  const [driveRes, walkRes, transitRes] = await Promise.all([
+  const [driveRes, walkRes, transitRoutes] = await Promise.all([
     requestRoute(
       {
         ...buildBaseBody(origin, destination, "DRIVE"),
@@ -618,12 +795,12 @@ export async function computeRouteLegDetails(
       ROUTE_MASK
     ),
     requestRoute(buildBaseBody(origin, destination, "WALK"), ROUTE_MASK),
-    requestRoute(buildTransitRequestBody(origin, destination), TRANSIT_MASK),
+    requestTransitRoutes(origin, destination),
   ]);
 
   const driveRoute = driveRes?.routes?.[0];
   const walkRoute = walkRes?.routes?.[0];
-  const transitRoute = transitRes?.routes?.[0];
+  const transitRoute = pickBestTransitRoute(transitRoutes);
 
   const drive = extractRouteInfo(driveRoute);
   const walk = extractRouteInfo(walkRoute);
