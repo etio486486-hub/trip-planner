@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import { Map, useMap } from "@vis.gl/react-google-maps";
+import { AdvancedMarker, Map, useMap } from "@vis.gl/react-google-maps";
 import { isMapsConfigured } from "./MapsProvider";
 import { MapsSetupGuide } from "./MapsSetupGuide";
 import type { Place } from "@/types/database";
+
+const MAP_ID =
+  process.env.NEXT_PUBLIC_GOOGLE_MAP_ID?.trim() || "DEMO_MAP_ID";
 
 type TripMapProps = {
   places: Place[];
@@ -46,28 +49,29 @@ function PlaceMarkers({
   places: Place[];
   focusedPlaceId: string | null;
 }) {
-  const map = useMap();
-
-  useEffect(() => {
-    if (!map) return;
-
-    const markers = places.map((place, index) => {
-      const isFocused = place.id === focusedPlaceId;
-      return new google.maps.Marker({
-        position: { lat: place.latitude, lng: place.longitude },
-        map,
-        label: String(index + 1),
-        title: place.name,
-        zIndex: isFocused ? 1000 : index,
-      });
-    });
-
-    return () => {
-      markers.forEach((marker) => marker.setMap(null));
-    };
-  }, [map, places, focusedPlaceId]);
-
-  return null;
+  return (
+    <>
+      {places.map((place, index) => {
+        const isFocused = place.id === focusedPlaceId;
+        return (
+          <AdvancedMarker
+            key={place.id}
+            position={{ lat: place.latitude, lng: place.longitude }}
+            title={place.name}
+            zIndex={isFocused ? 1000 : index}
+          >
+            <div
+              className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white shadow-md ${
+                isFocused ? "bg-blue-700 ring-2 ring-white" : "bg-red-600"
+              }`}
+            >
+              {index + 1}
+            </div>
+          </AdvancedMarker>
+        );
+      })}
+    </>
+  );
 }
 
 function MapCameraController({
@@ -128,6 +132,7 @@ function MapContent({
 
   return (
     <Map
+      mapId={MAP_ID}
       defaultCenter={center}
       defaultZoom={zoom}
       gestureHandling="greedy"

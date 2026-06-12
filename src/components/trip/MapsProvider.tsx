@@ -18,7 +18,7 @@ export function MapsProvider({ children }: MapsProviderProps) {
   }
 
   return (
-    <APIProvider apiKey={MAPS_API_KEY} libraries={["places"]}>
+    <APIProvider apiKey={MAPS_API_KEY} libraries={["places", "marker"]}>
       {children}
     </APIProvider>
   );

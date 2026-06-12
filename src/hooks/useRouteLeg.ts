@@ -26,6 +26,21 @@ const EMPTY: RouteLegResult = {
   error: null,
 };
 
+async function safeCompute(
+  origin: { lat: number; lng: number },
+  destination: { lat: number; lng: number },
+  mode: "DRIVE" | "TRANSIT" | "WALK"
+) {
+  try {
+    return await computeRoute(origin, destination, mode);
+  } catch (err) {
+    if (err instanceof Error && err.message === "ROUTES_API_DISABLED") {
+      throw err;
+    }
+    return null;
+  }
+}
+
 export function useRouteLeg(
   from: Place | null,
   to: Place | null
@@ -46,27 +61,22 @@ export function useRouteLeg(
 
     const load = async () => {
       try {
-        const [drive, walk] = await Promise.all([
-          computeRoute(origin, destination, "DRIVE"),
-          computeRoute(origin, destination, "WALK"),
+        const [drive, walk, transit] = await Promise.all([
+          safeCompute(origin, destination, "DRIVE"),
+          safeCompute(origin, destination, "WALK"),
+          safeCompute(origin, destination, "TRANSIT"),
         ]);
-
-        let transit: Awaited<ReturnType<typeof computeRoute>> = null;
-        try {
-          transit = await computeRoute(origin, destination, "TRANSIT");
-        } catch {
-          transit = null;
-        }
 
         if (cancelled) return;
 
+        const hasAny = drive || walk || transit;
         setResult({
-          distance: drive?.distance ?? walk?.distance ?? null,
+          distance: drive?.distance ?? walk?.distance ?? transit?.distance ?? null,
           taxi: drive?.duration ?? null,
           transit: transit?.duration ?? null,
           walking: walk?.duration ?? null,
           loading: false,
-          error: null,
+          error: hasAny ? null : "경로 정보를 불러올 수 없습니다",
         });
       } catch (err) {
         if (cancelled) return;

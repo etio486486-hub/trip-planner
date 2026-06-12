@@ -5,6 +5,7 @@ type TravelMode = "DRIVE" | "TRANSIT" | "WALK";
 type RouteData = {
   distanceMeters?: number;
   duration?: string;
+  staticDuration?: string;
   localizedValues?: {
     distance?: { text?: string };
     duration?: { text?: string };
@@ -23,6 +24,16 @@ export type RouteInfo = {
 
 function getApiKey(): string {
   return process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
+}
+
+function isValidCoord({ lat, lng }: LatLng): boolean {
+  return (
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    Math.abs(lat) <= 90 &&
+    Math.abs(lng) <= 180 &&
+    !(lat === 0 && lng === 0)
+  );
 }
 
 function parseDurationSeconds(duration?: string): number | null {
@@ -52,7 +63,9 @@ function extractRouteInfo(route: RouteData | undefined): RouteInfo {
     localized?.duration?.text ??
     localized?.staticDuration?.text ??
     (() => {
-      const sec = parseDurationSeconds(route?.duration);
+      const sec =
+        parseDurationSeconds(route?.duration) ??
+        parseDurationSeconds(route?.staticDuration);
       return sec != null ? formatDurationKo(sec) : null;
     })();
 
@@ -65,15 +78,46 @@ function extractRouteInfo(route: RouteData | undefined): RouteInfo {
   return { distance: distanceText, duration: durationText };
 }
 
-export async function computeRoute(
-  origin: LatLng,
-  destination: LatLng,
-  travelMode: TravelMode
-): Promise<RouteInfo | null> {
+async function requestRoute(
+  body: Record<string, unknown>
+): Promise<RouteResponse | null> {
   const apiKey = getApiKey();
   if (!apiKey.startsWith("AIza")) return null;
 
-  const body: Record<string, unknown> = {
+  const response = await fetch(
+    "https://routes.googleapis.com/directions/v2:computeRoutes",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": apiKey,
+        "X-Goog-FieldMask":
+          "routes.duration,routes.staticDuration,routes.distanceMeters,routes.localizedValues",
+      },
+      body: JSON.stringify(body),
+    }
+  );
+
+  if (!response.ok) {
+    const errText = await response.text();
+    if (
+      errText.includes("LegacyApiNotActivated") ||
+      errText.includes("SERVICE_DISABLED")
+    ) {
+      throw new Error("ROUTES_API_DISABLED");
+    }
+    return null;
+  }
+
+  return (await response.json()) as RouteResponse;
+}
+
+function buildBaseBody(
+  origin: LatLng,
+  destination: LatLng,
+  travelMode: TravelMode
+): Record<string, unknown> {
+  return {
     origin: {
       location: {
         latLng: { latitude: origin.lat, longitude: origin.lng },
@@ -88,45 +132,72 @@ export async function computeRoute(
     languageCode: "ko",
     units: "METRIC",
   };
+}
 
-  if (travelMode === "DRIVE") {
-    body.routingPreference = "TRAFFIC_AWARE";
-    body.departureTime = new Date().toISOString();
+async function computeDriveRoute(
+  origin: LatLng,
+  destination: LatLng
+): Promise<RouteInfo | null> {
+  const trafficAware = await requestRoute({
+    ...buildBaseBody(origin, destination, "DRIVE"),
+    routingPreference: "TRAFFIC_AWARE",
+    departureTime: new Date().toISOString(),
+  });
+
+  const trafficRoute = trafficAware?.routes?.[0];
+  if (trafficRoute) return extractRouteInfo(trafficRoute);
+
+  const trafficUnaware = await requestRoute({
+    ...buildBaseBody(origin, destination, "DRIVE"),
+    routingPreference: "TRAFFIC_UNAWARE",
+  });
+
+  return extractRouteInfo(trafficUnaware?.routes?.[0]);
+}
+
+async function computeTransitRoute(
+  origin: LatLng,
+  destination: LatLng
+): Promise<RouteInfo | null> {
+  const response = await requestRoute({
+    ...buildBaseBody(origin, destination, "TRANSIT"),
+    departureTime: new Date().toISOString(),
+    transitPreferences: {
+      routingPreference: "LESS_WALKING",
+    },
+  });
+
+  return extractRouteInfo(response?.routes?.[0]);
+}
+
+async function computeWalkRoute(
+  origin: LatLng,
+  destination: LatLng
+): Promise<RouteInfo | null> {
+  const response = await requestRoute({
+    ...buildBaseBody(origin, destination, "WALK"),
+  });
+
+  return extractRouteInfo(response?.routes?.[0]);
+}
+
+export async function computeRoute(
+  origin: LatLng,
+  destination: LatLng,
+  travelMode: TravelMode
+): Promise<RouteInfo | null> {
+  if (!isValidCoord(origin) || !isValidCoord(destination)) {
+    return null;
   }
 
-  if (travelMode === "TRANSIT") {
-    body.departureTime = new Date().toISOString();
+  switch (travelMode) {
+    case "DRIVE":
+      return computeDriveRoute(origin, destination);
+    case "TRANSIT":
+      return computeTransitRoute(origin, destination);
+    case "WALK":
+      return computeWalkRoute(origin, destination);
+    default:
+      return null;
   }
-
-  const response = await fetch(
-    "https://routes.googleapis.com/directions/v2:computeRoutes",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Goog-Api-Key": apiKey,
-        "X-Goog-FieldMask":
-          "routes.duration,routes.distanceMeters,routes.localizedValues",
-      },
-      body: JSON.stringify(body),
-    }
-  );
-
-  if (!response.ok) {
-    const errText = await response.text();
-    if (
-      errText.includes("LegacyApiNotActivated") ||
-      errText.includes("SERVICE_DISABLED") ||
-      errText.includes("Routes API")
-    ) {
-      throw new Error("ROUTES_API_DISABLED");
-    }
-    throw new Error(`ROUTES_API_ERROR:${response.status}`);
-  }
-
-  const data = (await response.json()) as RouteResponse;
-  const route = data.routes?.[0];
-  if (!route) return null;
-
-  return extractRouteInfo(route);
 }
