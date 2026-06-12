@@ -8,7 +8,7 @@ import {
   getSupabaseSetupMessage,
   isSupabaseConfigured,
 } from "@/lib/supabase/client";
-import { getUserId } from "@/lib/user";
+import { getUserId, syncDeviceIdentity } from "@/lib/user";
 import type { Trip } from "@/types/database";
 
 function formatSupabaseError(message: string): string {
@@ -30,6 +30,8 @@ export default function Home() {
   const supabaseReady = isSupabaseConfigured();
 
   useEffect(() => {
+    syncDeviceIdentity();
+
     if (!supabaseReady) {
       setLoading(false);
       return;

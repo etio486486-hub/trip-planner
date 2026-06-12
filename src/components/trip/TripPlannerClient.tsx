@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { AlertCircle } from "lucide-react";
 import { useTripRealtime } from "@/hooks/useTripRealtime";
+import { DeviceIdentityGuard } from "./DeviceIdentityGuard";
 import { MapsProvider } from "./MapsProvider";
 import { TripMap } from "./TripMap";
 import { MemberNameModal } from "./MemberNameModal";
@@ -12,7 +13,7 @@ type TripPlannerClientProps = {
   tripId: string;
 };
 
-export function TripPlannerClient({ tripId }: TripPlannerClientProps) {
+function TripPlannerContent({ tripId }: TripPlannerClientProps) {
   const [selectedDayNumber, setSelectedDayNumber] = useState(1);
   const [focusedPlaceId, setFocusedPlaceId] = useState<string | null>(null);
 
@@ -133,5 +134,13 @@ export function TripPlannerClient({ tripId }: TripPlannerClientProps) {
         </div>
       </div>
     </MapsProvider>
+  );
+}
+
+export function TripPlannerClient({ tripId }: TripPlannerClientProps) {
+  return (
+    <DeviceIdentityGuard>
+      <TripPlannerContent tripId={tripId} />
+    </DeviceIdentityGuard>
   );
 }
