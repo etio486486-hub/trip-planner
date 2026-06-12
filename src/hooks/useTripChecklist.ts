@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import {
+  getSupabaseErrorMessage,
+  isMissingTableError,
+} from "@/lib/supabase/errors";
+import {
   CHECKLIST_CATEGORIES,
   DEFAULT_CHECKLIST_TEMPLATE,
   type ChecklistCategory,
@@ -19,14 +23,6 @@ function sortItems(items: ChecklistItem[]): ChecklistItem[] {
     if (catA !== catB) return catA - catB;
     return a.sort_order - b.sort_order;
   });
-}
-
-function isMissingTableError(err: unknown): boolean {
-  const msg = err instanceof Error ? err.message : String(err);
-  return (
-    msg.includes("checklist_items") &&
-    (msg.includes("does not exist") || msg.includes("schema cache"))
-  );
 }
 
 export function useTripChecklist(tripId: string, currentUserId: string) {
@@ -54,7 +50,7 @@ export function useTripChecklist(tripId: string, currentUserId: string) {
         .order("sort_order", { ascending: true });
 
       if (fetchError) {
-        if (isMissingTableError(fetchError)) {
+        if (isMissingTableError(fetchError, "checklist_items")) {
           setNeedsMigration(true);
           setItems([]);
           return;
@@ -64,7 +60,12 @@ export function useTripChecklist(tripId: string, currentUserId: string) {
 
       setItems(sortItems(data ?? []));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "체크리스트 로드 실패");
+      if (isMissingTableError(err, "checklist_items")) {
+        setNeedsMigration(true);
+        setItems([]);
+      } else {
+        setError(getSupabaseErrorMessage(err) || "체크리스트 로드 실패");
+      }
     } finally {
       setLoading(false);
     }

@@ -15,6 +15,7 @@ import {
   type useTripExpenses,
 } from "@/hooks/useTripExpenses";
 import { formatDateKo, formatMoney } from "@/lib/format";
+import { isMissingTableError } from "@/lib/supabase/errors";
 import {
   EXPENSE_CATEGORIES,
   EXPENSE_CATEGORY_COLORS,
@@ -56,7 +57,7 @@ export function ExpensePanel({
 
   const [formOpen, setFormOpen] = useState(false);
 
-  if (needsMigration) {
+  if (needsMigration || (error && isMissingTableError({ message: error }))) {
     return <MigrationNotice feature="가계부" />;
   }
 

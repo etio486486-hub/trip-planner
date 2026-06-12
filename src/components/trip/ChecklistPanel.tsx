@@ -10,6 +10,7 @@ import {
   Trash2,
 } from "lucide-react";
 import type { useTripChecklist } from "@/hooks/useTripChecklist";
+import { isMissingTableError } from "@/lib/supabase/errors";
 import { CHECKLIST_CATEGORIES } from "@/lib/trip-constants";
 import type { ChecklistItem } from "@/types/database";
 import { MigrationNotice } from "./MigrationNotice";
@@ -82,7 +83,7 @@ export function ChecklistPanel({ checklist, isMobile = false }: ChecklistPanelPr
     }
   };
 
-  if (needsMigration) {
+  if (needsMigration || (error && isMissingTableError({ message: error }))) {
     return <MigrationNotice feature="체크리스트" />;
   }
 

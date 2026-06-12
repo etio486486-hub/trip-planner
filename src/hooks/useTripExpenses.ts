@@ -2,6 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase/client";
+import {
+  getSupabaseErrorMessage,
+  isMissingTableError,
+} from "@/lib/supabase/errors";
 import type { ExpenseCurrency } from "@/lib/trip-constants";
 import type { Expense, TripMember } from "@/types/database";
 
@@ -26,14 +30,6 @@ export type CategoryExpenseSummary = {
   category: string;
   totalByCurrency: Record<string, number>;
 };
-
-function isMissingTableError(err: unknown): boolean {
-  const msg = err instanceof Error ? err.message : String(err);
-  return (
-    msg.includes("expenses") &&
-    (msg.includes("does not exist") || msg.includes("schema cache"))
-  );
-}
 
 function parseAmount(value: number | string): number {
   const n = typeof value === "string" ? Number(value) : value;
@@ -66,7 +62,7 @@ export function useTripExpenses(tripId: string) {
         .order("created_at", { ascending: false });
 
       if (fetchError) {
-        if (isMissingTableError(fetchError)) {
+        if (isMissingTableError(fetchError, "expenses")) {
           setNeedsMigration(true);
           setExpenses([]);
           return;
@@ -81,7 +77,12 @@ export function useTripExpenses(tripId: string) {
         }))
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "가계부 로드 실패");
+      if (isMissingTableError(err, "expenses")) {
+        setNeedsMigration(true);
+        setExpenses([]);
+      } else {
+        setError(getSupabaseErrorMessage(err) || "가계부 로드 실패");
+      }
     } finally {
       setLoading(false);
     }
