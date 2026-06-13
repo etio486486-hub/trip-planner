@@ -5,11 +5,15 @@ import { getSupabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import {
   bindUserToTrip,
   getDeviceMemberIdsForTrip,
+  getTripBoundUserId,
   getUserDisplayName,
   getUserIdForTrip,
   hasCustomDisplayName,
+  resolveActiveUserId,
   setUserDisplayName,
 } from "@/lib/user";
+import { getAuthDisplayName, migrateCreatorToAuthUser } from "@/lib/auth";
+import { setCachedAuthUserId } from "@/lib/auth-cache";
 import type {
   DailyPlan,
   Place,
@@ -91,11 +95,21 @@ export function useTripRealtime({
   }, [selectedDailyPlan]);
 
   const reconcileDeviceMembers = useCallback(
-    async (activeUserId: string, creatorId: string, myName: string) => {
-      const removeIds = new Set<string>();
+    async (
+      activeUserId: string,
+      creatorId: string,
+      myName: string,
+      extraRemoveIds: string[] = []
+    ) => {
+      const removeIds = new Set<string>(extraRemoveIds);
 
       for (const oldId of getDeviceMemberIdsForTrip(tripId)) {
         if (oldId !== activeUserId) removeIds.add(oldId);
+      }
+
+      const boundOld = getTripBoundUserId(tripId);
+      if (boundOld && boundOld !== activeUserId) {
+        removeIds.add(boundOld);
       }
 
       if (myName) {
@@ -112,6 +126,8 @@ export function useTripRealtime({
           }
         }
       }
+
+      removeIds.delete(activeUserId);
 
       await Promise.all(
         [...removeIds].map((oldId) =>
@@ -159,7 +175,6 @@ export function useTripRealtime({
         .single();
 
       if (tripError) throw tripError;
-      setTrip(tripData);
 
       const { data: membersData, error: membersError } = await getSupabase()
         .from("trip_members")
@@ -168,20 +183,55 @@ export function useTripRealtime({
 
       if (membersError) throw membersError;
 
-      const userId = getUserIdForTrip(tripId, membersData ?? []);
+      const { data: sessionData } = await getSupabase().auth.getSession();
+      const authUser = sessionData.session?.user ?? null;
+      if (authUser) setCachedAuthUserId(authUser.id);
+
+      let resolvedTrip = tripData;
+      const previousCreatorId = tripData.creator_id;
+      const legacyRemoveIds: string[] = [];
+
+      if (authUser && resolvedTrip.creator_id !== authUser.id) {
+        const migrated = await migrateCreatorToAuthUser(
+          tripId,
+          authUser.id,
+          resolvedTrip.creator_id
+        );
+        if (migrated) {
+          resolvedTrip = { ...resolvedTrip, creator_id: authUser.id };
+        }
+        legacyRemoveIds.push(previousCreatorId);
+      }
+
+      const userId = resolveActiveUserId(
+        tripId,
+        authUser?.id,
+        membersData ?? []
+      );
       tripUserIdRef.current = userId;
       setCurrentUserId(userId);
 
-      const nameReady = hasCustomDisplayName();
-      const displayName = getUserDisplayName();
+      setTrip(resolvedTrip);
+
+      const displayName = authUser
+        ? getAuthDisplayName(authUser)
+        : getUserDisplayName();
+      const nameReady = authUser
+        ? Boolean(displayName)
+        : hasCustomDisplayName();
+
+      if (authUser && displayName) {
+        setUserDisplayName(displayName);
+      }
 
       setNeedsNameSetup(!nameReady);
 
       if (nameReady) {
         await reconcileDeviceMembers(
           userId,
-          tripData.creator_id,
-          displayName
+          resolvedTrip.creator_id,
+          displayName,
+          legacyRemoveIds
         );
 
         await getSupabase()
@@ -241,6 +291,24 @@ export function useTripRealtime({
 
   useEffect(() => {
     loadTripData();
+  }, [loadTripData]);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return;
+
+    const supabase = getSupabase();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      const authId = session?.user?.id;
+      if (!authId) return;
+      setCachedAuthUserId(authId);
+      if (tripUserIdRef.current && tripUserIdRef.current !== authId) {
+        loadTripData();
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, [loadTripData]);
 
   useEffect(() => {

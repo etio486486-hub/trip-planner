@@ -72,7 +72,11 @@ function HomeContent() {
 
     loadUserTrips(user.id)
       .then((trips) => {
-        if (!cancelled) setMyTrips(trips);
+        if (cancelled) return;
+        setMyTrips(trips);
+        if (trips.length === 1) {
+          window.location.replace(buildTripPath(trips[0].id));
+        }
       })
       .finally(() => {
         if (!cancelled) setLoadingTrips(false);
@@ -227,7 +231,7 @@ function HomeContent() {
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 내 여행 불러오는 중...
               </div>
-            ) : myTrips.length > 0 ? (
+            ) : myTrips.length > 1 ? (
               <div className="mb-5">
                 <h2 className="mb-2 text-sm font-semibold text-zinc-800">
                   내 여행

@@ -1,4 +1,4 @@
-import { getCachedAuthUserId } from "@/lib/auth-cache";
+import { getCachedAuthUserId, setCachedAuthUserId } from "@/lib/auth-cache";
 
 const USER_ID_KEY = "trip-planner-user-id";
 const USER_NAME_KEY = "trip-planner-user-name";
@@ -11,6 +11,11 @@ const COOKIE_MAX_AGE = 60 * 60 * 24 * 730; // 2 years
 
 function tripBoundKey(tripId: string) {
   return `trip-planner-bound-${tripId}`;
+}
+
+export function getTripBoundUserId(tripId: string): string | null {
+  if (typeof window === "undefined") return null;
+  return readStored(tripBoundKey(tripId));
 }
 
 function tripHistoryKey(tripId: string) {
@@ -119,15 +124,39 @@ export function getUserId(): string {
 
 type MemberRow = { user_id: string; display_name: string | null };
 
+/** Google 세션 ID가 있으면 항상 우선 사용 */
+export function resolveActiveUserId(
+  tripId: string,
+  authUserId: string | null | undefined,
+  existingMembers?: MemberRow[]
+): string {
+  if (authUserId) {
+    setCachedAuthUserId(authUserId);
+    writeStored(tripBoundKey(tripId), authUserId);
+    writeStored(USER_ID_KEY, authUserId, USER_ID_COOKIE);
+    recordTripUserId(tripId, authUserId);
+    return authUserId;
+  }
+  return getUserIdForTrip(tripId, existingMembers);
+}
+
 /**
- * 여행별로 한 번 정해진 계정 ID를 재사용.
- * 링크를 여러 번 열어도 같은 trip_members 행을 갱신한다.
+ * 여행별 계정 ID. Google 로그인 시 항상 auth ID를 사용하고,
+ * 예전 익명 ID(localStorage bound)는 무시한다.
  */
 export function getUserIdForTrip(
   tripId: string,
   existingMembers?: MemberRow[]
 ): string {
   if (typeof window === "undefined") return "";
+
+  const authId = getCachedAuthUserId();
+  if (authId) {
+    writeStored(tripBoundKey(tripId), authId);
+    writeStored(USER_ID_KEY, authId, USER_ID_COOKIE);
+    recordTripUserId(tripId, authId);
+    return authId;
+  }
 
   const boundKey = tripBoundKey(tripId);
   const boundId = readStored(boundKey);
@@ -168,7 +197,7 @@ export function bindUserToTrip(tripId: string, userId: string) {
   if (typeof window === "undefined" || !userId) return;
   writeStored(tripBoundKey(tripId), userId);
   writeStored(USER_ID_KEY, userId, USER_ID_COOKIE);
-  setTripUserHistory(tripId, [userId]);
+  recordTripUserId(tripId, userId);
 }
 
 /** 이 기기에서 이 여행에 쓰던 옛 ID 목록 (중복 멤버 정리용) */

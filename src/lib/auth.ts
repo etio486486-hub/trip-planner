@@ -2,7 +2,7 @@ import type { User } from "@supabase/supabase-js";
 import { setCachedAuthUserId } from "@/lib/auth-cache";
 import { getSupabase } from "@/lib/supabase/client";
 import { grantTripAccess } from "@/lib/trip-access";
-import { setUserDisplayName, hasCustomDisplayName } from "@/lib/user";
+import { getDeviceMemberIdsForTrip, getTripBoundUserId, setUserDisplayName, hasCustomDisplayName } from "@/lib/user";
 
 export { getCachedAuthUserId, setCachedAuthUserId } from "@/lib/auth-cache";
 
@@ -31,9 +31,9 @@ export async function signInWithGoogle(redirectPath = "/"): Promise<void> {
     provider: "google",
     options: {
       redirectTo: `${origin}/auth/callback?next=${encodeURIComponent(redirectPath)}`,
+      // prompt 생략 → Google에 이미 로그인돼 있으면 자동 통과
       queryParams: {
         access_type: "offline",
-        prompt: "consent",
       },
     },
   });
@@ -167,4 +167,28 @@ export async function ensureTripMembership(
       },
       { onConflict: "trip_id,user_id" }
     );
+}
+
+/** 이 기기에서 쓰던 익명 ID가 방장이면 Google 계정으로 방장 권한 이전 */
+export async function migrateCreatorToAuthUser(
+  tripId: string,
+  authUserId: string,
+  currentCreatorId: string
+): Promise<boolean> {
+  if (currentCreatorId === authUserId) return false;
+
+  const deviceIds = getDeviceMemberIdsForTrip(tripId);
+  const boundId = getTripBoundUserId(tripId);
+  const ownedOnThisDevice =
+    deviceIds.includes(currentCreatorId) ||
+    boundId === currentCreatorId;
+
+  if (!ownedOnThisDevice) return false;
+
+  const { error } = await getSupabase()
+    .from("trips")
+    .update({ creator_id: authUserId })
+    .eq("id", tripId);
+
+  return !error;
 }
