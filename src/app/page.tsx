@@ -175,11 +175,11 @@ function HomeContent() {
   return (
     <HomeLayout>
       <div className="safe-x">
-        <div className="mb-6 text-center">
-          <h2 className="text-xl font-bold tracking-tight text-zinc-900">
+        <div className="mb-7 border-b border-zinc-100 pb-6 text-left">
+          <h2 className="text-xl font-bold tracking-tight text-zinc-900 sm:text-2xl">
             시작하기
           </h2>
-          <p className="mt-1.5 text-sm text-zinc-500">
+          <p className="mt-2 text-sm leading-relaxed text-zinc-500">
             Google로 로그인하고 여행을 만들어 보세요
           </p>
         </div>
@@ -201,9 +201,8 @@ function HomeContent() {
               </div>
             )}
             <GoogleSignInButton onSignIn={() => signInWithGoogle("/")} />
-            <p className="text-center text-xs leading-relaxed text-zinc-500">
+            <p className="text-left text-xs leading-relaxed text-zinc-500">
               로그인하면 내 여행이 자동으로 저장됩니다.
-              <br />
               초대 링크를 받았다면 로그인 후 바로 입장할 수 있어요.
             </p>
           </div>
@@ -311,7 +310,7 @@ function HomeContent() {
           </>
         )}
 
-        <p className="mt-6 text-center text-xs text-zinc-400">
+        <p className="mt-8 border-t border-zinc-100 pt-5 text-center text-xs text-zinc-400">
           <Link href="/admin" className="hover:text-zinc-600 hover:underline">
             관리자
           </Link>

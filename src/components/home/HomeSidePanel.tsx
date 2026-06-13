@@ -15,14 +15,14 @@ type HomeSidePanelProps = {
 
 const accentStyles = {
   blue: {
-    border: "border-blue-200/60",
-    glow: "from-blue-500/10 via-white to-indigo-50/80",
-    badge: "bg-blue-600",
+    border: "border-slate-200/80",
+    headerBg: "bg-gradient-to-r from-blue-50/80 to-indigo-50/50",
+    badge: "bg-blue-600 shadow-blue-600/25",
   },
   amber: {
-    border: "border-amber-200/60",
-    glow: "from-amber-400/10 via-white to-orange-50/80",
-    badge: "bg-amber-500",
+    border: "border-slate-200/80",
+    headerBg: "bg-gradient-to-r from-amber-50/80 to-orange-50/50",
+    badge: "bg-amber-500 shadow-amber-500/25",
   },
 };
 
@@ -39,20 +39,20 @@ export function HomeSidePanel({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-2xl border ${styles.border} bg-gradient-to-br ${styles.glow} p-4 shadow-[0_20px_60px_-24px_rgba(15,23,42,0.35)] backdrop-blur-sm ${className}`}
+      className={`flex h-full flex-col overflow-hidden rounded-2xl border ${styles.border} bg-white shadow-[0_8px_40px_-12px_rgba(15,23,42,0.12)] ${className}`}
     >
-      <div className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-white/40 blur-2xl" />
-
-      <div className="relative mb-4 flex items-start justify-between gap-2">
-        <div className="flex items-start gap-2.5">
+      <div
+        className={`relative flex shrink-0 items-start justify-between gap-2 border-b border-slate-100 px-5 py-4 ${styles.headerBg}`}
+      >
+        <div className="flex items-start gap-3">
           <div
-            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${styles.badge} text-white shadow-md`}
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${styles.badge} text-white shadow-md`}
           >
             {icon}
           </div>
           <div>
-            <h2 className="text-sm font-bold text-zinc-900">{title}</h2>
-            <p className="mt-0.5 text-[11px] leading-relaxed text-zinc-500">
+            <h2 className="text-base font-bold text-zinc-900">{title}</h2>
+            <p className="mt-0.5 text-xs leading-relaxed text-zinc-500">
               {subtitle}
             </p>
           </div>
@@ -61,7 +61,7 @@ export function HomeSidePanel({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1 text-zinc-400 hover:bg-white/70 hover:text-zinc-600"
+            className="rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-white/80 hover:text-zinc-600"
             aria-label="닫기"
           >
             <X className="h-4 w-4" />
@@ -69,7 +69,7 @@ export function HomeSidePanel({
         )}
       </div>
 
-      <div className="relative max-h-[min(480px,60vh)] overflow-y-auto pr-0.5">
+      <div className="relative min-h-0 flex-1 overflow-y-auto px-5 py-4 lg:max-h-[520px]">
         {children}
       </div>
     </div>

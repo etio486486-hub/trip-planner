@@ -68,7 +68,7 @@ export function PopularPlacesPanel({
                 href={buildGoogleMapsUrl(place)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group flex items-start gap-2 rounded-xl border border-white/80 bg-white/70 px-2.5 py-2.5 transition-all hover:border-amber-200 hover:bg-white hover:shadow-sm"
+                className="group flex items-start gap-2.5 rounded-xl border border-slate-100 bg-slate-50/50 px-3 py-2.5 transition-all hover:border-amber-200 hover:bg-white hover:shadow-sm"
               >
                 <span
                   className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
