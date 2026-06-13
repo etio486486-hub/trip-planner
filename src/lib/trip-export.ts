@@ -1,4 +1,8 @@
-function buildExportElement(title: string, content: string): HTMLDivElement {
+function buildExportElement(
+  title: string,
+  content: string,
+  watermark?: string
+): HTMLDivElement {
   const div = document.createElement("div");
   div.style.cssText =
     "position:fixed;left:-9999px;top:0;width:640px;padding:32px;font-family:system-ui,sans-serif;font-size:14px;line-height:1.6;background:#fff;color:#18181b";
@@ -6,6 +10,11 @@ function buildExportElement(title: string, content: string): HTMLDivElement {
     <h1 style="margin:0 0 16px;font-size:20px;font-weight:700">${escapeHtml(title)}</h1>
     <pre style="margin:0;white-space:pre-wrap;font-family:inherit;font-size:13px">${escapeHtml(content)}</pre>
     <p style="margin-top:24px;font-size:11px;color:#a1a1aa">— Trip Planner —</p>
+    ${
+      watermark
+        ? `<p style="margin-top:8px;font-size:10px;color:#d4d4d8;text-align:center">${escapeHtml(watermark)}</p>`
+        : ""
+    }
   `;
   document.body.appendChild(div);
   return div;
@@ -23,8 +32,12 @@ function sanitizeFilename(name: string): string {
   return name.replace(/[<>:"/\\|?*]/g, "_").slice(0, 80) || "export";
 }
 
-async function renderToCanvas(title: string, content: string) {
-  const el = buildExportElement(title, content);
+async function renderToCanvas(
+  title: string,
+  content: string,
+  watermark?: string
+) {
+  const el = buildExportElement(title, content, watermark);
   try {
     const html2canvas = (await import("html2canvas")).default;
     return await html2canvas(el, {
@@ -39,9 +52,10 @@ async function renderToCanvas(title: string, content: string) {
 
 export async function downloadShareTextAsPdf(
   title: string,
-  content: string
+  content: string,
+  options?: { watermark?: string }
 ): Promise<void> {
-  const canvas = await renderToCanvas(title, content);
+  const canvas = await renderToCanvas(title, content, options?.watermark);
   const imgData = canvas.toDataURL("image/png");
   const { jsPDF } = await import("jspdf");
 
@@ -70,9 +84,10 @@ export async function downloadShareTextAsPdf(
 
 export async function downloadShareTextAsImage(
   title: string,
-  content: string
+  content: string,
+  options?: { watermark?: string }
 ): Promise<void> {
-  const canvas = await renderToCanvas(title, content);
+  const canvas = await renderToCanvas(title, content, options?.watermark);
   const link = document.createElement("a");
   link.download = `${sanitizeFilename(title)}.png`;
   link.href = canvas.toDataURL("image/png");

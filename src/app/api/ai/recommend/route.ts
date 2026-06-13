@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { requireProFeature } from "@/lib/pro-server";
+import { getAuthenticatedProProfile } from "@/lib/pro-server";
+import { isProActive } from "@/lib/pro";
+import {
+  consumeFreemiumUsage,
+  getFreemiumUsageSnapshot,
+} from "@/lib/freemium-usage-server";
 
 type RecommendRequest = {
   destination?: string;
@@ -20,9 +25,29 @@ type AiDay = {
 };
 
 export async function POST(request: Request) {
-  const auth = await requireProFeature("ai_recommend");
-  if (!auth.ok) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  const { userId, profile } = await getAuthenticatedProProfile();
+
+  if (!userId) {
+    return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+  }
+
+  const isPro = isProActive(profile);
+
+  if (!isPro) {
+    const snapshot = await getFreemiumUsageSnapshot(
+      userId,
+      profile,
+      "ai_recommend"
+    );
+    if (!snapshot.canUse) {
+      return NextResponse.json(
+        {
+          error: "무료 AI 추천은 이번 달 1회까지입니다. Pro로 무제한 이용하세요.",
+          usage: snapshot,
+        },
+        { status: 403 }
+      );
+    }
   }
 
   const apiKey = process.env.OPENAI_API_KEY;
@@ -41,7 +66,8 @@ export async function POST(request: Request) {
   }
 
   const destination = body.destination?.trim() || "후쿠오카";
-  const days = Math.min(7, Math.max(1, body.days ?? 1));
+  const requestedDays = Math.min(7, Math.max(1, body.days ?? 1));
+  const days = isPro ? requestedDays : 1;
   const preferences = body.preferences?.trim() || "맛집·관광·대중교통 접근";
   const existing = body.existingPlaces?.slice(0, 20) ?? [];
 
@@ -100,9 +126,25 @@ Rules:
   try {
     const parsed = JSON.parse(raw) as { days?: AiDay[] };
     const daysResult = (parsed.days ?? []).slice(0, days);
+
+    if (!isPro) {
+      const consumed = await consumeFreemiumUsage(
+        userId,
+        profile,
+        "ai_recommend"
+      );
+      if (!consumed.ok) {
+        return NextResponse.json(
+          { error: consumed.error },
+          { status: consumed.status }
+        );
+      }
+    }
+
     return NextResponse.json({
       destination,
       days: daysResult,
+      freemium: !isPro,
     });
   } catch {
     return NextResponse.json(

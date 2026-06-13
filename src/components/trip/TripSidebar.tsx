@@ -146,12 +146,25 @@ function ItineraryContent({
 
   const handleAddAiCourse = async (
     days: AiDay[],
-    ctx: { destination: string; defaultLat: number; defaultLng: number }
+    ctx: {
+      destination: string;
+      defaultLat: number;
+      defaultLng: number;
+      maxDayNumber?: number;
+    }
   ) => {
-    const maxDay = Math.max(...days.map((d) => d.dayNumber), 1);
+    const filteredDays = ctx.maxDayNumber
+      ? days.filter((d) => d.dayNumber <= ctx.maxDayNumber!)
+      : days;
+
+    if (filteredDays.length === 0) {
+      return { added: 0, skipped: [] };
+    }
+
+    const maxDay = Math.max(...filteredDays.map((d) => d.dayNumber), 1);
     await onEnsureDaysUpTo(maxDay);
 
-    const items = days.flatMap((day) =>
+    const items = filteredDays.flatMap((day) =>
       day.places.map((p) => ({
         dayNumber: day.dayNumber,
         name: p.name,

@@ -2,6 +2,7 @@
 
 import { Check, Crown, Sparkles } from "lucide-react";
 import {
+  FREEMIUM_TEASERS,
   PRO_FEATURES,
   PRO_PRICE_LABEL,
   type ProFeatureId,
@@ -43,6 +44,11 @@ export function ProUpgradePanel({
             <p className="mt-1 text-xs leading-relaxed text-zinc-600">
               {feature.description}
             </p>
+            {FREEMIUM_TEASERS[featureId] && (
+              <p className="mt-1.5 text-[11px] text-amber-700">
+                {FREEMIUM_TEASERS[featureId]}
+              </p>
+            )}
             <p className="mt-2 text-xs font-semibold text-amber-800">
               Pro {PRO_PRICE_LABEL} · 결제 연동 준비 중
             </p>

@@ -27,6 +27,8 @@ import {
 import { getLocalKoreanReading } from "@/lib/foreign-reading";
 import { COMMON_PHRASES } from "@/lib/common-phrases";
 import { usePro } from "@/hooks/usePro";
+import { useFreemiumUsage } from "@/hooks/useFreemiumUsage";
+import { FREEMIUM_LIMITS } from "@/lib/freemium-limits";
 import { ConversationTranslator } from "@/components/pro/ConversationTranslator";
 import { ProBadge } from "@/components/pro/ProBadge";
 import { ProUpgradePanel } from "@/components/pro/ProUpgradePanel";
@@ -48,8 +50,9 @@ function getSpeechRecognition(): SpeechRecognitionCtor | null {
 
 export function TranslatorPanel({ isMobile = false }: { isMobile?: boolean }) {
   const { hasFeature } = usePro();
+  const { isPro, getSnapshot, consume, refresh } = useFreemiumUsage();
   const [mode, setMode] = useState<TranslatorMode>("basic");
-  const canConversation = hasFeature("conversation_mode");
+  const conversationUsage = getSnapshot("conversation_mode");
   const canServerStt = hasFeature("iphone_stt") && isServerSttSupported();
   const [sourceLang, setSourceLang] = useState<TranslateLang>("ko");
   const [targetLang, setTargetLang] = useState<TranslateLang>("ja");
@@ -222,12 +225,47 @@ export function TranslatorPanel({ isMobile = false }: { isMobile?: boolean }) {
 
   const showProSttHint = Boolean(device?.isIOS && !canServerStt);
 
+  const handleModeChange = async (next: TranslatorMode) => {
+    if (next === "conversation" && !hasFeature("conversation_mode")) {
+      if (!conversationUsage.canUse) {
+        setMode("conversation");
+        return;
+      }
+      const result = await consume("conversation_mode");
+      void refresh();
+      if (!result.ok) {
+        setError(result.error ?? "미리보기 횟수를 모두 사용했습니다.");
+        setMode("conversation");
+        return;
+      }
+    }
+    setMode(next);
+  };
+
+  const showConversation =
+    hasFeature("conversation_mode") ||
+    (mode === "conversation" && conversationUsage.used > 0);
+
   if (mode === "conversation") {
-    if (canConversation) {
+    if (showConversation) {
       return (
         <div className="flex min-h-0 flex-1 flex-col">
           <div className="shrink-0 border-b border-violet-100 bg-gradient-to-r from-violet-50 to-white px-4 py-3">
-            <ModeTabs mode={mode} onModeChange={setMode} />
+            <ModeTabs
+              mode={mode}
+              onModeChange={(m) => void handleModeChange(m)}
+              conversationPreview={
+                !hasFeature("conversation_mode")
+                  ? conversationUsage
+                  : undefined
+              }
+            />
+            {!hasFeature("conversation_mode") && (
+              <p className="mt-2 text-[10px] text-violet-700">
+                {FREEMIUM_LIMITS.conversation_mode.freeHint} · 사용{" "}
+                {conversationUsage.used}/{conversationUsage.limit}
+              </p>
+            )}
           </div>
           <ConversationTranslator isMobile={isMobile} />
         </div>
@@ -235,7 +273,11 @@ export function TranslatorPanel({ isMobile = false }: { isMobile?: boolean }) {
     }
     return (
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-3">
-        <ModeTabs mode={mode} onModeChange={setMode} />
+        <ModeTabs
+          mode={mode}
+          onModeChange={(m) => void handleModeChange(m)}
+          conversationPreview={conversationUsage}
+        />
         <ProUpgradePanel featureId="conversation_mode" className="mt-3" />
       </div>
     );
@@ -244,7 +286,13 @@ export function TranslatorPanel({ isMobile = false }: { isMobile?: boolean }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="shrink-0 border-b border-violet-100 bg-gradient-to-r from-violet-50 to-white px-4 py-3">
-        <ModeTabs mode={mode} onModeChange={setMode} />
+        <ModeTabs
+          mode={mode}
+          onModeChange={(m) => void handleModeChange(m)}
+          conversationPreview={
+            !hasFeature("conversation_mode") ? conversationUsage : undefined
+          }
+        />
         <div className="mt-2 flex items-center gap-2">
           <Languages className="h-4 w-4 text-violet-600" />
           <span className="text-sm font-semibold text-zinc-800">
@@ -495,9 +543,15 @@ export function TranslatorPanel({ isMobile = false }: { isMobile?: boolean }) {
 function ModeTabs({
   mode,
   onModeChange,
+  conversationPreview,
 }: {
   mode: TranslatorMode;
   onModeChange: (m: TranslatorMode) => void;
+  conversationPreview?: {
+    used: number;
+    limit: number;
+    remaining: number;
+  };
 }) {
   return (
     <div className="flex gap-1 rounded-lg bg-zinc-100 p-0.5">
@@ -523,6 +577,11 @@ function ModeTabs({
       >
         대화형
         <ProBadge />
+        {conversationPreview && conversationPreview.remaining > 0 && (
+          <span className="text-[9px] font-normal text-violet-600">
+            {conversationPreview.remaining}회
+          </span>
+        )}
       </button>
     </div>
   );

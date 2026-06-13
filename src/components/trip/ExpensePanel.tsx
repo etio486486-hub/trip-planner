@@ -14,8 +14,10 @@ import {
   X,
 } from "lucide-react";
 import { usePro } from "@/hooks/usePro";
+import { useFreemiumUsage } from "@/hooks/useFreemiumUsage";
 import { ProBadge } from "@/components/pro/ProBadge";
 import { ProUpgradePanel } from "@/components/pro/ProUpgradePanel";
+import { FREEMIUM_LIMITS } from "@/lib/freemium-limits";
 import {
   resolveMemberName,
   type ExpenseInput,
@@ -84,7 +86,9 @@ export function ExpensePanel({
   const [liveLoading, setLiveLoading] = useState(false);
   const [liveError, setLiveError] = useState<string | null>(null);
   const { hasFeature } = usePro();
-  const canLiveExchange = hasFeature("live_exchange");
+  const { isPro, getSnapshot, refresh: refreshUsage } = useFreemiumUsage();
+  const isFullProExchange = hasFeature("live_exchange");
+  const exchangeUsage = getSnapshot("live_exchange");
 
   useEffect(() => {
     setRates(loadExchangeRates(tripId));
@@ -105,19 +109,27 @@ export function ExpensePanel({
     saveExchangeRates(tripId, next);
   };
 
-  const fetchLiveRates = async () => {
-    if (!canLiveExchange) return;
+  const fetchLiveRates = async (options?: { manual?: boolean }) => {
+    if (options?.manual && !isFullProExchange) return;
+
     setLiveLoading(true);
     setLiveError(null);
     try {
-      const res = await fetch("/api/exchange-rates");
+      const url = options?.manual
+        ? "/api/exchange-rates?manual=1"
+        : "/api/exchange-rates";
+      const res = await fetch(url);
       const data = (await res.json()) as {
         toBase?: TripExchangeRates["toBase"];
         fetchedAt?: string;
         source?: string;
         error?: string;
+        limitReached?: boolean;
       };
       if (!res.ok) {
+        if (data.limitReached && !options?.manual) {
+          return;
+        }
         setLiveError(data.error ?? "환율 불러오기 실패");
         return;
       }
@@ -127,6 +139,7 @@ export function ExpensePanel({
         fetchedAt: data.fetchedAt ?? new Date().toISOString(),
         liveSource: data.source ?? "api",
       });
+      void refreshUsage();
     } catch {
       setLiveError("네트워크 오류");
     } finally {
@@ -135,11 +148,9 @@ export function ExpensePanel({
   };
 
   useEffect(() => {
-    if (canLiveExchange) {
-      void fetchLiveRates();
-    }
+    void fetchLiveRates();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tripId, canLiveExchange]);
+  }, [tripId]);
 
   if (needsMigration || (error && isMissingTableError({ message: error }))) {
     return <MigrationNotice feature="가계부" />;
@@ -197,18 +208,20 @@ export function ExpensePanel({
           <span>
             환율 (1¥ = {rates.toBase.JPY}
             {rates.baseCurrency === "KRW" ? "원" : ""})
-            {rates.fetchedAt && canLiveExchange && (
-              <span className="ml-1 text-emerald-600">· 실시간</span>
+            {rates.fetchedAt && rates.liveSource === "api" && (
+              <span className="ml-1 text-emerald-600">
+                · {isFullProExchange ? "실시간" : "오늘 갱신"}
+              </span>
             )}
           </span>
           <ChevronDown
             className={`h-3.5 w-3.5 transition-transform ${ratesOpen ? "rotate-180" : ""}`}
           />
         </button>
-        {canLiveExchange && (
+        {isFullProExchange ? (
           <button
             type="button"
-            onClick={() => void fetchLiveRates()}
+            onClick={() => void fetchLiveRates({ manual: true })}
             disabled={liveLoading}
             className="mt-1.5 flex w-full items-center justify-center gap-1.5 rounded-md bg-emerald-600 px-2 py-1.5 text-[11px] font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
           >
@@ -220,10 +233,14 @@ export function ExpensePanel({
             Pro 실시간 환율 갱신
             <ProBadge />
           </button>
-        )}
-        {!canLiveExchange && (
+        ) : (
           <p className="mt-1.5 text-[10px] text-zinc-500">
-            Pro: 실시간 환율 API · 일별 원화 합계
+            {FREEMIUM_LIMITS.live_exchange.freeHint}
+            {!exchangeUsage.canUse && " · 오늘 사용 완료"}
+            {exchangeUsage.canUse && !isPro && (
+              <span> · 남은 횟수 {exchangeUsage.remaining}회</span>
+            )}
+            {" · Pro: 무제한 갱신 · 일별 원화 합계"}
           </p>
         )}
         {liveError && (
@@ -231,7 +248,7 @@ export function ExpensePanel({
         )}
         {ratesOpen && (
           <div className="mt-2 space-y-2 rounded-md bg-white p-2 ring-1 ring-zinc-200">
-            {!canLiveExchange && (
+            {!isFullProExchange && (
               <ProUpgradePanel featureId="live_exchange" compact />
             )}
             <label className="block text-[10px] text-zinc-500">기준 통화</label>
@@ -397,7 +414,7 @@ export function ExpensePanel({
                   <h4 className="text-xs font-semibold text-zinc-500">
                     {formatDateKo(date)}
                   </h4>
-                  {canLiveExchange && list.length > 0 && (
+                  {isFullProExchange && list.length > 0 && (
                     <span className="text-[10px] font-semibold text-emerald-700">
                       {formatMoney(dayTotal, rates.baseCurrency)}
                     </span>

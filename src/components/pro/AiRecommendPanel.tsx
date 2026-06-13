@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { Loader2, Sparkles, X } from "lucide-react";
-import { resolveAiPlaces } from "@/lib/ai-place-resolve";
 import { ProBadge } from "./ProBadge";
 import { ProUpgradePanel } from "./ProUpgradePanel";
-import { usePro } from "@/hooks/usePro";
+import { useFreemiumUsage } from "@/hooks/useFreemiumUsage";
+import { FREE_AI_ADD_MAX_DAY, FREEMIUM_LIMITS } from "@/lib/freemium-limits";
 
 type AiPlace = { name: string; memo?: string };
 type AiDay = { dayNumber: number; title?: string; places: AiPlace[] };
@@ -18,7 +18,12 @@ type AiRecommendPanelProps = {
   defaultLng: number;
   onAddAiCourse: (
     days: AiDay[],
-    ctx: { destination: string; defaultLat: number; defaultLng: number }
+    ctx: {
+      destination: string;
+      defaultLat: number;
+      defaultLng: number;
+      maxDayNumber?: number;
+    }
   ) => Promise<{ added: number; skipped: string[] }>;
   compact?: boolean;
 };
@@ -32,8 +37,9 @@ export function AiRecommendPanel({
   onAddAiCourse,
   compact = false,
 }: AiRecommendPanelProps) {
-  const { hasFeature } = usePro();
-  const canRecommend = hasFeature("ai_recommend");
+  const { isPro, getSnapshot, refresh } = useFreemiumUsage();
+  const aiUsage = getSnapshot("ai_recommend");
+  const canRecommend = isPro || aiUsage.canUse;
 
   const [open, setOpen] = useState(false);
   const [preferences, setPreferences] = useState("맛집·카페·관광");
@@ -43,30 +49,14 @@ export function AiRecommendPanel({
   const [error, setError] = useState<string | null>(null);
   const [skipNotice, setSkipNotice] = useState<string | null>(null);
   const [result, setResult] = useState<AiDay[] | null>(null);
-
-  if (!canRecommend) {
-    return (
-      <div className={compact ? "px-3 py-2" : "border-b border-zinc-100 px-4 py-3"}>
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          className="flex w-full items-center gap-2 rounded-lg bg-violet-50 px-3 py-2.5 text-left text-xs font-semibold text-violet-800 ring-1 ring-violet-200"
-        >
-          <Sparkles className="h-4 w-4" />
-          AI 일정·맛집 추천
-          <ProBadge />
-          <span className="ml-auto text-[10px] font-normal text-violet-600">
-            {open ? "닫기" : "Pro"}
-          </span>
-        </button>
-        {open && (
-          <ProUpgradePanel featureId="ai_recommend" className="mt-2" compact />
-        )}
-      </div>
-    );
-  }
+  const [lastFreemium, setLastFreemium] = useState(false);
 
   const runRecommend = async () => {
+    if (!canRecommend) {
+      setError("이번 달 무료 AI 추천을 모두 사용했습니다.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setSkipNotice(null);
@@ -78,7 +68,7 @@ export function AiRecommendPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           destination,
-          days: dayCount,
+          days: isPro ? dayCount : 1,
           preferences,
           existingPlaces: existingPlaceNames,
         }),
@@ -87,6 +77,7 @@ export function AiRecommendPanel({
       const data = (await res.json()) as {
         days?: AiDay[];
         error?: string;
+        freemium?: boolean;
       };
 
       if (!res.ok) {
@@ -95,7 +86,9 @@ export function AiRecommendPanel({
       }
 
       setResult(data.days ?? []);
+      setLastFreemium(Boolean(data.freemium));
       setOpen(true);
+      void refresh();
     } catch {
       setError("네트워크 오류");
     } finally {
@@ -115,6 +108,7 @@ export function AiRecommendPanel({
         destination,
         defaultLat,
         defaultLng,
+        maxDayNumber: isPro ? undefined : FREE_AI_ADD_MAX_DAY,
       });
 
       if (summary.skipped.length > 0) {
@@ -127,7 +121,9 @@ export function AiRecommendPanel({
         setOpen(false);
         setResult(null);
       } else {
-        setError("추가할 수 있는 장소가 없습니다. Google Maps API 키를 확인해 주세요.");
+        setError(
+          "추가할 수 있는 장소가 없습니다. Google Maps API 키를 확인해 주세요."
+        );
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "추가 실패");
@@ -136,6 +132,8 @@ export function AiRecommendPanel({
       setGeocoding(false);
     }
   };
+
+  const freemiumHint = FREEMIUM_LIMITS.ai_recommend.freeHint;
 
   return (
     <div className={compact ? "px-3 py-2" : "border-b border-zinc-100 px-4 py-3"}>
@@ -147,7 +145,7 @@ export function AiRecommendPanel({
         >
           <Sparkles className="h-4 w-4" />
           AI 코스 추천
-          <ProBadge />
+          {!isPro && <ProBadge />}
         </button>
       ) : (
         <div className="rounded-xl border border-violet-200 bg-violet-50/50 p-3">
@@ -170,6 +168,20 @@ export function AiRecommendPanel({
             </button>
           </div>
 
+          {!isPro && (
+            <p className="mb-2 text-[10px] text-violet-700">
+              {freemiumHint}
+              {!canRecommend && " · 이번 달 사용 완료"}
+              {canRecommend && aiUsage.remaining > 0 && (
+                <span> · 남은 횟수 {aiUsage.remaining}회</span>
+              )}
+            </p>
+          )}
+
+          {!canRecommend && (
+            <ProUpgradePanel featureId="ai_recommend" className="mb-2" compact />
+          )}
+
           <label className="mb-1 block text-[10px] font-medium text-violet-700">
             취향 (선택)
           </label>
@@ -178,14 +190,15 @@ export function AiRecommendPanel({
             value={preferences}
             onChange={(e) => setPreferences(e.target.value)}
             placeholder="맛집·온천·쇼핑..."
-            className="mb-2 w-full rounded-lg border border-violet-200 bg-white px-2.5 py-2 text-xs"
+            disabled={!canRecommend}
+            className="mb-2 w-full rounded-lg border border-violet-200 bg-white px-2.5 py-2 text-xs disabled:opacity-50"
           />
 
           {!result ? (
             <button
               type="button"
               onClick={() => void runRecommend()}
-              disabled={loading}
+              disabled={loading || !canRecommend}
               className="flex w-full items-center justify-center gap-2 rounded-lg bg-violet-600 py-2.5 text-xs font-semibold text-white hover:bg-violet-700 disabled:opacity-50"
             >
               {loading ? (
@@ -193,8 +206,10 @@ export function AiRecommendPanel({
                   <Loader2 className="h-4 w-4 animate-spin" />
                   생성 중…
                 </>
-              ) : (
+              ) : isPro ? (
                 `${dayCount}일 코스 추천 받기`
+              ) : (
+                "1일 코스 맛보기"
               )}
             </button>
           ) : (
@@ -224,7 +239,8 @@ export function AiRecommendPanel({
               </ul>
               <p className="mb-2 text-[10px] text-violet-600">
                 Google Places로 실제 위치를 찾아{" "}
-                <strong>일차별</strong>로 추가합니다.
+                <strong>{isPro ? "일차별" : "1일차"}</strong>로 추가합니다.
+                {lastFreemium && " · 무료는 1일치만 추가됩니다."}
               </p>
               <button
                 type="button"
@@ -256,5 +272,4 @@ export function AiRecommendPanel({
   );
 }
 
-// Re-export for TripSidebar handler
 export type { AiDay };

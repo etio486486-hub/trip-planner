@@ -66,6 +66,14 @@ export const PRO_FEATURES: ProFeatureDef[] = [
 export const PRO_PRICE_LABEL = "월 4,900원";
 export const FREE_TRIP_LIMIT = 3;
 
+/** 무료 맛보기 안내 */
+export const FREEMIUM_TEASERS: Partial<Record<ProFeatureId, string>> = {
+  ai_recommend: "무료: 월 1회 · 1일치 · Pro: 무제한",
+  conversation_mode: "무료: 미리보기 3회 · Pro: 무제한",
+  pdf_export: "무료: 일정 PDF·이미지(워터마크) · Pro: 가계부·체크리스트 포함",
+  live_exchange: "무료: 하루 1회 자동 갱신 · Pro: 무제한 + 일별 원화",
+};
+
 export function getProFeature(id: ProFeatureId): ProFeatureDef | undefined {
   return PRO_FEATURES.find((f) => f.id === id);
 }
