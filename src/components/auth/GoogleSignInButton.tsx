@@ -1,7 +1,9 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { isInAppBrowser } from "@/lib/in-app-browser";
+import { InAppBrowserNotice } from "./InAppBrowserNotice";
 
 type GoogleSignInButtonProps = {
   onSignIn: () => Promise<void>;
@@ -15,12 +17,25 @@ export function GoogleSignInButton({
   className = "",
 }: GoogleSignInButtonProps) {
   const [loading, setLoading] = useState(false);
+  const [blocked, setBlocked] = useState(false);
+
+  useEffect(() => {
+    setBlocked(isInAppBrowser());
+  }, []);
+
+  if (blocked) {
+    return <InAppBrowserNotice className={className} />;
+  }
 
   return (
     <button
       type="button"
       disabled={loading}
       onClick={async () => {
+        if (isInAppBrowser()) {
+          setBlocked(true);
+          return;
+        }
         setLoading(true);
         try {
           await onSignIn();
