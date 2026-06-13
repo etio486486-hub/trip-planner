@@ -79,6 +79,7 @@ type TripSidebarProps = {
   mobileItineraryLayout?: MobileItineraryLayout;
   scrollToPlaceId?: string | null;
   onScrollToPlaceDone?: () => void;
+  onViewPlaceOnMap?: (placeId: string) => void;
 };
 
 function ItineraryContent({
@@ -100,6 +101,7 @@ function ItineraryContent({
   isMobile,
   scrollToPlaceId,
   onScrollToPlaceDone,
+  onViewPlaceOnMap,
 }: {
   loading: boolean;
   places: Place[];
@@ -127,6 +129,7 @@ function ItineraryContent({
   isMobile?: boolean;
   scrollToPlaceId?: string | null;
   onScrollToPlaceDone?: () => void;
+  onViewPlaceOnMap?: (placeId: string) => void;
 }) {
   return (
     <>
@@ -154,6 +157,7 @@ function ItineraryContent({
               isMobile={isMobile}
               scrollToPlaceId={scrollToPlaceId}
               onScrollToPlaceDone={onScrollToPlaceDone}
+              onViewOnMap={onViewPlaceOnMap}
             />
           </div>
         )}
@@ -209,6 +213,7 @@ export function TripSidebar({
   mobileItineraryLayout = "full",
   scrollToPlaceId,
   onScrollToPlaceDone,
+  onViewPlaceOnMap,
 }: TripSidebarProps) {
   const onlineCount = onlineUsers.length;
   const teamSummary = `멤버 ${members.length}명${onlineCount > 0 ? ` · 온라인 ${onlineCount}` : ""}`;
@@ -306,6 +311,7 @@ export function TripSidebar({
               isMobile
               scrollToPlaceId={scrollToPlaceId}
               onScrollToPlaceDone={onScrollToPlaceDone}
+              onViewPlaceOnMap={onViewPlaceOnMap}
             />
           </div>
         )}
@@ -389,6 +395,7 @@ export function TripSidebar({
             onShowAllSegments={onShowAllSegments}
             onAddPlace={onAddPlace}
             onUpdatePlace={onUpdatePlace}
+            onViewPlaceOnMap={onViewPlaceOnMap}
           />
         </>
       )}

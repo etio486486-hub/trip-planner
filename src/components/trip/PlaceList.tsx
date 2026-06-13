@@ -17,7 +17,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Clock, GripVertical, Trash2 } from "lucide-react";
+import { Clock, GripVertical, MapPin, Trash2 } from "lucide-react";
 import { PlaceScheduleEditor } from "./PlaceScheduleEditor";
 import { PlaceTimeline } from "./PlaceTimeline";
 import {
@@ -55,6 +55,7 @@ type PlaceListProps = {
   isMobile?: boolean;
   scrollToPlaceId?: string | null;
   onScrollToPlaceDone?: () => void;
+  onViewOnMap?: (placeId: string) => void;
 };
 
 function SortablePlaceItem({
@@ -171,6 +172,7 @@ export function PlaceList({
   isMobile = false,
   scrollToPlaceId,
   onScrollToPlaceDone,
+  onViewOnMap,
 }: PlaceListProps) {
   useEffect(() => {
     if (!scrollToPlaceId) return;
@@ -269,6 +271,18 @@ export function PlaceList({
                 onDelete={onDelete}
                 isMobile={isMobile}
               />
+              {onViewOnMap && (
+                <button
+                  type="button"
+                  onClick={() => onViewOnMap(place.id)}
+                  className={`flex w-full items-center justify-center gap-1.5 rounded-xl border border-zinc-200/90 bg-white/80 font-medium text-zinc-600 shadow-sm transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 ${
+                    isMobile ? "touch-row py-2.5 text-xs" : "py-2 text-[11px]"
+                  }`}
+                >
+                  <MapPin className="h-3.5 w-3.5 shrink-0" />
+                  지도로 보기
+                </button>
+              )}
               {selectedPlaceId === place.id && (
                 <PlaceScheduleEditor
                   place={place}

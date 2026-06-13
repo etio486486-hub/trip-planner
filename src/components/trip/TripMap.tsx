@@ -51,6 +51,26 @@ function SegmentPolylines({ segments }: { segments: MapRouteSegment[] }) {
   return null;
 }
 
+function PlaceMarkerBadge({
+  number,
+  focused,
+}: {
+  number: number;
+  focused: boolean;
+}) {
+  return (
+    <div
+      className={`flex h-7 min-w-[1.75rem] shrink-0 items-center justify-center rounded-full px-1 text-xs font-bold text-white shadow-md ${
+        focused
+          ? "bg-blue-700 ring-2 ring-white"
+          : "bg-red-600 ring-1 ring-white/90"
+      }`}
+    >
+      {number}
+    </div>
+  );
+}
+
 function PlaceMarkers({
   places,
   focusedPlaceId,
@@ -72,6 +92,7 @@ function PlaceMarkers({
           .map((item) => `${item.number}. ${item.place.name}`)
           .join(" · ");
         const markerKey = group.items.map((item) => item.place.id).join("-");
+        const stacked = group.items.length > 1;
 
         return (
           <AdvancedMarker
@@ -87,23 +108,35 @@ function PlaceMarkers({
             }}
           >
             <div
-              className={`flex items-center gap-0.5 ${onPlaceClick ? "cursor-pointer" : ""}`}
+              className={`flex ${stacked ? "flex-col gap-1" : "flex-col items-start"} ${onPlaceClick ? "cursor-pointer" : ""}`}
             >
-              {group.items.map((item) => (
-                <div
-                  key={item.place.id}
-                  className={`flex h-7 min-w-[1.75rem] items-center justify-center rounded-full px-1 text-xs font-bold text-white shadow-md ${
-                    item.place.id === focusedPlaceId ||
-                    (isFocused && group.items.length === 1)
-                      ? "bg-blue-700 ring-2 ring-white"
-                      : isFocused
-                        ? "bg-blue-600 ring-1 ring-white/80"
-                        : "bg-red-600"
-                  }`}
-                >
-                  {item.number}
-                </div>
-              ))}
+              {group.items.map((item) => {
+                const itemFocused =
+                  item.place.id === focusedPlaceId ||
+                  (isFocused && group.items.length === 1);
+
+                return (
+                  <div
+                    key={item.place.id}
+                    className="flex max-w-[11rem] items-center gap-1 sm:max-w-[13rem]"
+                  >
+                    <PlaceMarkerBadge
+                      number={item.number}
+                      focused={itemFocused}
+                    />
+                    <div
+                      className={`min-w-0 truncate rounded-md px-1.5 py-0.5 text-[11px] font-semibold leading-tight shadow-md ${
+                        itemFocused
+                          ? "bg-blue-700 text-white"
+                          : "bg-white/95 text-zinc-800"
+                      }`}
+                      title={item.place.name}
+                    >
+                      {item.place.name}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </AdvancedMarker>
         );

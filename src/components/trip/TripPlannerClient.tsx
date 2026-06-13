@@ -302,6 +302,16 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
     [isMobile, handleMobileFocusChange]
   );
 
+  const handleViewPlaceOnMap = useCallback(
+    (placeId: string) => {
+      setFocusedPlaceId(placeId);
+      if (isMobile) {
+        handleMobileFocusChange("map");
+      }
+    },
+    [isMobile, handleMobileFocusChange]
+  );
+
   const mobileItineraryLayout: MobileItineraryLayout =
     mobileFocus === "half" ? "compact" : "full";
 
@@ -348,6 +358,7 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
     mobileItineraryLayout,
     scrollToPlaceId,
     onScrollToPlaceDone: () => setScrollToPlaceId(null),
+    onViewPlaceOnMap: handleViewPlaceOnMap,
   };
 
   const mapProps = {
