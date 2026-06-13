@@ -215,6 +215,45 @@ body {
   animation: home-scale-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
 }
 
+/* ── 여행 워크스페이스 (홈과 동일 톤) ── */
+.trip-shell {
+  background-color: #f6f8fc;
+}
+
+.trip-shell-bg {
+  pointer-events: none;
+}
+
+.trip-enter {
+  animation: home-fade-up 0.65s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.trip-sidebar-panel {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.trip-map-frame {
+  box-shadow:
+    0 24px 80px -24px rgba(15, 23, 42, 0.18),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+}
+
+.trip-day-pill-active {
+  background: linear-gradient(135deg, #2563eb 0%, #4f46e5 50%, #7c3aed 100%);
+  box-shadow: 0 4px 14px -4px rgba(37, 99, 235, 0.55);
+}
+
+.trip-glass-card {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 8px 24px -8px rgba(15, 23, 42, 0.08);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .intro-gradient,
   .intro-logo,
@@ -232,6 +271,10 @@ body {
   .home-enter-delay-1,
   .home-enter-delay-2,
   .home-card-enter {
+    animation: none !important;
+  }
+
+  .trip-enter {
     animation: none !important;
   }
 }

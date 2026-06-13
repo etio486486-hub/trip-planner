@@ -24,47 +24,55 @@ export function DayTabs({
 
   return (
     <div
-      className={`flex items-center gap-1 overflow-x-auto border-b border-zinc-200 ${
-        compact ? "px-2 py-1.5" : "px-3 py-2"
+      className={`shrink-0 border-b border-white/60 bg-white/40 backdrop-blur-sm ${
+        compact ? "px-2 py-2" : "px-3 py-2.5"
       }`}
     >
-      {dailyPlans.map((plan) => (
-        <button
-          key={`day-${plan.day_number}-${plan.id}`}
-          type="button"
-          onClick={() => onSelectDay(plan.day_number)}
-          className={`shrink-0 rounded-lg font-medium transition-colors ${
-            compact ? "px-2.5 py-1 text-xs" : "px-3 py-1.5 text-sm"
-          } ${
-            selectedDayNumber === plan.day_number
-              ? "bg-blue-600 text-white"
-              : "bg-zinc-100 text-zinc-800 hover:bg-zinc-200"
-          }`}
-        >
-          {plan.day_number}일차
-        </button>
-      ))}
-      <button
-        type="button"
-        onClick={onAddDay}
-        className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-sm text-zinc-600 hover:bg-zinc-100"
-        title="일차 추가"
-      >
-        <Plus className="h-4 w-4" />
-      </button>
-      <button
-        type="button"
-        onClick={() => onRemoveDay(selectedDayNumber)}
-        disabled={!canRemove}
-        className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-sm text-red-500 hover:bg-red-50 disabled:cursor-not-allowed disabled:text-zinc-300 disabled:hover:bg-transparent"
-        title={
-          canRemove
-            ? `${selectedDayNumber}일차 제거`
-            : "최소 1일차는 유지해야 합니다"
-        }
-      >
-        <Minus className="h-4 w-4" />
-      </button>
+      <div className="flex items-center gap-1.5 overflow-x-auto">
+        {dailyPlans.map((plan) => {
+          const active = selectedDayNumber === plan.day_number;
+          return (
+            <button
+              key={`day-${plan.day_number}-${plan.id}`}
+              type="button"
+              onClick={() => onSelectDay(plan.day_number)}
+              className={`shrink-0 rounded-full font-semibold transition-all active:scale-[0.97] ${
+                compact ? "px-3 py-1.5 text-xs" : "px-3.5 py-2 text-sm"
+              } ${
+                active
+                  ? "trip-day-pill-active text-white"
+                  : "bg-white/80 text-zinc-600 ring-1 ring-zinc-200/80 hover:bg-white hover:text-zinc-900"
+              }`}
+            >
+              Day {plan.day_number}
+            </button>
+          );
+        })}
+
+        <div className="ml-auto flex shrink-0 items-center gap-0.5 pl-1">
+          <button
+            type="button"
+            onClick={onAddDay}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-white/80 text-zinc-600 ring-1 ring-zinc-200/80 transition hover:bg-blue-50 hover:text-blue-600"
+            title="일차 추가"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => onRemoveDay(selectedDayNumber)}
+            disabled={!canRemove}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-white/80 text-red-500 ring-1 ring-zinc-200/80 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:text-zinc-300 disabled:hover:bg-white"
+            title={
+              canRemove
+                ? `${selectedDayNumber}일차 제거`
+                : "최소 1일차는 유지해야 합니다"
+            }
+          >
+            <Minus className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

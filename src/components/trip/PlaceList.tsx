@@ -81,12 +81,12 @@ function SortablePlaceItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-2 rounded-xl border shadow-sm transition-colors ${
-        isMobile ? "p-3.5" : "rounded-lg p-3"
+      className={`flex items-center gap-2 rounded-2xl border shadow-sm transition-all ${
+        isMobile ? "p-3.5" : "p-3"
       } ${
         selected
-          ? "border-blue-400 bg-blue-50 ring-1 ring-blue-200"
-          : "border-zinc-200 bg-white"
+          ? "border-blue-300/80 bg-gradient-to-r from-blue-50/90 to-indigo-50/80 ring-2 ring-blue-200/60 shadow-md shadow-blue-100/50"
+          : "trip-glass-card border-white/80 hover:border-blue-100/80 hover:shadow-md"
       }`}
     >
       <button
@@ -104,7 +104,7 @@ function SortablePlaceItem({
           isMobile ? "h-7 w-7 text-sm" : "h-6 w-6 text-xs"
         } ${
           selected
-            ? "bg-blue-600 text-white"
+            ? "bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-sm"
             : "bg-blue-100 text-blue-700"
         }`}
       >

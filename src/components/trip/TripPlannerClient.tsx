@@ -25,6 +25,7 @@ import { PanelResizeHandle } from "./PanelResizeHandle";
 import { RestaurantMapProvider } from "./RestaurantMapContext";
 import { TripSidebar } from "./TripSidebar";
 import type { SidebarTab } from "./TripMenuTabs";
+import { getDestinationTheme } from "@/lib/trip-destination-theme";
 
 type TripPlannerClientProps = {
   tripId: string;
@@ -104,6 +105,11 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
     const member = members.find((m) => m.user_id === currentUserId);
     return member?.display_name?.trim() || "나";
   }, [members, currentUserId]);
+
+  const destinationTheme = useMemo(
+    () => getDestinationTheme(trip?.title),
+    [trip?.title]
+  );
 
   const handleSegmentModeChange = (
     fromId: string,
@@ -263,22 +269,30 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
         open={needsNameSetup}
         onSave={joinTripAsMember}
       />
-      <div className="fixed inset-0 flex h-dvh w-full flex-col pt-[env(safe-area-inset-top)] lg:static lg:pt-0">
+      <div className="trip-shell fixed inset-0 flex h-dvh w-full flex-col pt-[env(safe-area-inset-top)] lg:static lg:pt-0">
+        <div className="trip-shell-bg pointer-events-none absolute inset-0 overflow-hidden">
+          <div
+            className={`hero-mesh absolute -left-[15%] top-[-8%] h-[480px] w-[480px] rounded-full blur-[100px] ${destinationTheme.mesh}`}
+          />
+          <div className="hero-mesh-delay absolute -right-[10%] bottom-[5%] h-[420px] w-[420px] rounded-full bg-indigo-400/12 blur-[100px]" />
+          <div className="home-dot-grid absolute inset-0 opacity-30" />
+        </div>
+
         {error && (
-          <div className="flex items-center gap-2 bg-red-50 px-4 py-2 text-sm text-red-700">
+          <div className="relative z-10 flex items-center gap-2 bg-red-50/95 px-4 py-2 text-sm text-red-700 backdrop-blur-sm">
             <AlertCircle className="h-4 w-4 shrink-0" />
             {error}
           </div>
         )}
         <div
-          className={`flex flex-1 overflow-hidden ${
-            isMobile ? "flex-col" : "flex-row"
+          className={`relative z-[1] flex flex-1 overflow-hidden ${
+            isMobile ? "flex-col" : "flex-row p-2 gap-0"
           }`}
         >
           {isMobile ? (
             <>
               <main
-                className="relative min-h-0 w-full overflow-hidden"
+                className="relative min-h-0 w-full overflow-hidden rounded-t-2xl ring-1 ring-white/70 shadow-lg"
                 style={{
                   flex: `0 0 ${mapHeightPercent}%`,
                   minHeight: "18%",
@@ -309,7 +323,7 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
                   />
                 </div>
               </div>
-              <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
+              <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-t-2xl bg-white/90 shadow-[0_-8px_32px_-8px_rgba(15,23,42,0.12)] ring-1 ring-white/80 backdrop-blur-xl">
                 <TripSidebar {...sidebarProps} isMobile />
               </div>
               {currentUserId && (
@@ -324,7 +338,7 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
           ) : (
             <>
               <div
-                className="h-full shrink-0 overflow-hidden"
+                className="trip-enter h-full shrink-0 overflow-hidden rounded-2xl ring-1 ring-white/80 shadow-[0_8px_40px_-12px_rgba(15,23,42,0.12)]"
                 style={{ width: sidebarWidth }}
               >
                 <TripSidebar {...sidebarProps} />
@@ -333,7 +347,7 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
                 direction="horizontal"
                 onResize={(delta) => resizeSidebar(sidebarWidth + delta)}
               />
-              <main className="relative min-w-0 flex-1">
+              <main className="relative min-w-0 flex-1 overflow-hidden rounded-2xl trip-map-frame ring-1 ring-white/80">
                 <TripMap {...mapProps} />
                 <MapFeatureButtons
                   activeTab={sidebarTab}

@@ -198,7 +198,7 @@ export function TripShareMenu({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`flex items-center gap-1 rounded-lg font-medium text-zinc-600 ring-1 ring-zinc-200 hover:bg-zinc-50 ${
+        className={`flex items-center gap-1 rounded-xl font-medium text-zinc-600 ring-1 ring-white/80 bg-white/80 shadow-sm backdrop-blur-sm hover:bg-white ${
           compact
             ? "px-2 py-1 text-[11px]"
             : "px-2.5 py-1.5 text-xs"

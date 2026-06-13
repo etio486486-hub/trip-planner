@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Users } from "lucide-react";
 
 type CollapsibleSectionProps = {
   title: string;
@@ -19,13 +19,14 @@ export function CollapsibleSection({
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <div className="border-b border-zinc-200">
+    <div className="border-b border-white/60">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full min-h-[40px] items-center gap-2 px-3 py-2 text-left active:bg-zinc-50"
+        className="flex w-full min-h-[44px] items-center gap-2 px-3.5 py-2.5 text-left transition hover:bg-white/50 active:bg-white/70"
       >
-        <span className="text-xs font-semibold text-zinc-700">{title}</span>
+        <Users className="h-3.5 w-3.5 shrink-0 text-blue-500" />
+        <span className="text-xs font-semibold text-zinc-800">{title}</span>
         {summary && (
           <span className="min-w-0 flex-1 truncate text-xs text-zinc-500">
             {summary}
@@ -37,7 +38,11 @@ export function CollapsibleSection({
           }`}
         />
       </button>
-      {open && <div className="border-t border-zinc-100">{children}</div>}
+      {open && (
+        <div className="border-t border-white/50 bg-white/30 px-1 pb-2">
+          {children}
+        </div>
+      )}
     </div>
   );
 }

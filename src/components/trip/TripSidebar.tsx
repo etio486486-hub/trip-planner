@@ -203,7 +203,7 @@ function ItineraryContent({
             <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
           </div>
         ) : (
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-4 max-lg:pb-20">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-4 pt-1 max-lg:pb-20">
             <PlaceList
               places={places}
               selectedPlaceId={selectedPlaceId}
@@ -293,9 +293,10 @@ export function TripSidebar({
 
   if (isMobile) {
     return (
-      <aside className="flex h-full w-full min-w-0 flex-col bg-white">
+      <aside className="trip-sidebar-panel flex h-full w-full min-w-0 flex-col">
         <TripHeader
           trip={trip}
+          dayCount={dailyPlans.length}
           onUpdate={onUpdateTrip}
           compact
           rightActions={shareMenu}
@@ -319,7 +320,7 @@ export function TripSidebar({
         </CollapsibleSection>
 
         {sidebarTab === "itinerary" && (
-          <div className="sticky top-0 z-10 shrink-0 bg-white shadow-sm ring-1 ring-zinc-100">
+          <div className="sticky top-0 z-10 shrink-0">
             <DayTabs
               dailyPlans={dailyPlans}
               selectedDayNumber={selectedDayNumber}
@@ -380,9 +381,10 @@ export function TripSidebar({
   }
 
   return (
-    <aside className="flex h-full w-full min-w-0 flex-col border-zinc-200 bg-white lg:border-r">
+    <aside className="trip-sidebar-panel flex h-full w-full min-w-0 flex-col">
       <TripHeader
         trip={trip}
+        dayCount={dailyPlans.length}
         onUpdate={onUpdateTrip}
         rightActions={shareMenu}
       />

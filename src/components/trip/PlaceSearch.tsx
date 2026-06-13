@@ -74,10 +74,10 @@ export function PlaceSearch({ onAdd, compact = false }: PlaceSearchProps) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={`flex w-full items-center justify-center gap-2 bg-blue-600 font-medium text-white transition-colors hover:bg-blue-700 active:bg-blue-800 ${
+        className={`flex w-full items-center justify-center gap-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 font-semibold text-white shadow-lg shadow-blue-600/20 transition hover:from-blue-700 hover:via-indigo-700 hover:to-violet-700 active:scale-[0.99] ${
           compact
             ? "min-h-[48px] px-4 py-3 text-sm"
-            : "mx-3 mb-3 min-h-[44px] w-[calc(100%-1.5rem)] rounded-lg px-4 py-3 text-sm"
+            : "mx-3 mb-3 min-h-[44px] w-[calc(100%-1.5rem)] rounded-2xl px-4 py-3 text-sm"
         }`}
       >
         <Plus className="h-4 w-4" />
