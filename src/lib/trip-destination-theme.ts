@@ -114,6 +114,27 @@ export function formatTripDateRange(start: string, end: string): string {
   }
 }
 
+/** 모바일 헤더 등 좁은 공간용 */
+export function formatTripDateRangeShort(start: string, end: string): string {
+  try {
+    const s = new Date(start + "T12:00:00");
+    const e = new Date(end + "T12:00:00");
+    const sameYear = s.getFullYear() === e.getFullYear();
+    const sameMonth =
+      sameYear &&
+      s.getMonth() === e.getMonth();
+    if (sameMonth) {
+      return `${s.getMonth() + 1}/${s.getDate()}–${e.getDate()}`;
+    }
+    if (sameYear) {
+      return `${s.getMonth() + 1}/${s.getDate()}–${e.getMonth() + 1}/${e.getDate()}`;
+    }
+    return `${s.getFullYear().toString().slice(2)}/${s.getMonth() + 1}/${s.getDate()}–${e.getFullYear().toString().slice(2)}/${e.getMonth() + 1}/${e.getDate()}`;
+  } catch {
+    return `${start} ~ ${end}`;
+  }
+}
+
 export function countTripDays(start: string, end: string): number {
   try {
     const s = new Date(start + "T12:00:00");

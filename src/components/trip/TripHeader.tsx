@@ -6,6 +6,7 @@ import { CalendarDays, Check, Compass, Pencil, X } from "lucide-react";
 import {
   countTripDays,
   formatTripDateRange,
+  formatTripDateRangeShort,
   getDestinationTheme,
 } from "@/lib/trip-destination-theme";
 import { markPreferHome } from "@/lib/trip-home-nav";
@@ -85,13 +86,116 @@ export function TripHeader({
   if (!trip) {
     return (
       <div
-        className={`shrink-0 border-b border-white/60 ${compact ? "px-3 py-3" : "px-4 py-4"}`}
+        className={`shrink-0 border-b border-white/60 ${compact ? "px-2 py-2" : "px-4 py-4"}`}
       >
         <h1
-          className={`text-center font-bold text-zinc-900 ${compact ? "text-base" : "text-lg"}`}
+          className={`font-bold text-zinc-900 ${compact ? "text-center text-sm" : "text-center text-lg"}`}
         >
           여행 계획
         </h1>
+      </div>
+    );
+  }
+
+  if (compact) {
+    return (
+      <div className="relative shrink-0 border-b border-white/60 px-2 py-1.5">
+        {editing ? (
+          <div className="space-y-2">
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full rounded-lg border border-zinc-200/80 bg-white px-2.5 py-2 text-sm font-semibold text-zinc-900 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
+              placeholder="여행 제목"
+            />
+            <div className="flex items-center gap-1.5">
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="min-w-0 flex-1 rounded-lg border border-zinc-200/80 bg-white px-1.5 py-1.5 text-[11px] text-zinc-900 outline-none focus:border-blue-400"
+              />
+              <span className="text-[10px] text-zinc-400">~</span>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                min={startDate}
+                className="min-w-0 flex-1 rounded-lg border border-zinc-200/80 bg-white px-1.5 py-1.5 text-[11px] text-zinc-900 outline-none focus:border-blue-400"
+              />
+            </div>
+            {endDate < startDate && (
+              <p className="text-[10px] text-red-500">
+                종료일은 시작일 이후여야 합니다.
+              </p>
+            )}
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={saveEdit}
+                disabled={saving || !title.trim() || endDate < startDate}
+                className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-blue-600 py-1.5 text-[11px] font-semibold text-white disabled:opacity-50"
+              >
+                <Check className="h-3 w-3" />
+                저장
+              </button>
+              <button
+                type="button"
+                onClick={cancelEdit}
+                disabled={saving}
+                className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-zinc-200 bg-white py-1.5 text-[11px] font-medium text-zinc-600"
+              >
+                <X className="h-3 w-3" />
+                취소
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5">
+            <Link
+              href="/"
+              onClick={() => markPreferHome()}
+              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-white shadow-sm ${theme.gradient}`}
+              title="홈으로"
+            >
+              <Compass className="h-3.5 w-3.5" strokeWidth={2.2} />
+            </Link>
+
+            <div className="min-w-0 flex-1">
+              <h1 className="truncate text-sm font-bold leading-tight text-zinc-900">
+                {trip.title}
+              </h1>
+              <p className="mt-0.5 flex items-center gap-1 truncate text-[10px] leading-tight text-zinc-500">
+                <span>{theme.emoji}</span>
+                <span>{theme.label}</span>
+                {tripDays > 0 && (
+                  <>
+                    <span className="text-zinc-300">·</span>
+                    <span>{tripDays}일</span>
+                  </>
+                )}
+                <span className="text-zinc-300">·</span>
+                <CalendarDays className="h-2.5 w-2.5 shrink-0" />
+                <span className="truncate">
+                  {formatTripDateRangeShort(trip.start_date, trip.end_date)}
+                </span>
+              </p>
+            </div>
+
+            <div className="flex shrink-0 items-center gap-0.5">
+              {rightActions}
+              <button
+                type="button"
+                onClick={startEdit}
+                className="rounded-lg p-1.5 text-zinc-500 transition hover:bg-white/80 hover:text-zinc-800"
+                title="제목·날짜 편집"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

@@ -224,8 +224,8 @@ export function TripSidebar({
         />
 
         {sidebarTab === "itinerary" && (
-          <>
-            <CollapsibleSection title="팀 · 초대" summary={teamSummary}>
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <CollapsibleSection title="팀 · 초대" summary={teamSummary} dense>
               <InviteMembers
                 tripId={tripId}
                 inviteCode={trip?.invite_code}
@@ -271,28 +271,36 @@ export function TripSidebar({
               onUpdatePlace={onUpdatePlace}
               isMobile
             />
-          </>
+          </div>
         )}
 
         {sidebarTab === "checklist" && (
-          <ChecklistPanel
-            checklist={checklist}
-            members={members}
-            isMobile
-          />
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <ChecklistPanel
+              checklist={checklist}
+              members={members}
+              isMobile
+            />
+          </div>
         )}
         {sidebarTab === "budget" && (
-          <ExpensePanel
-            tripId={tripId}
-            expenses={expenses}
-            members={members}
-            currentUserId={currentUserId}
-            tripStartDate={trip?.start_date}
-            tripEndDate={trip?.end_date}
-            isMobile
-          />
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <ExpensePanel
+              tripId={tripId}
+              expenses={expenses}
+              members={members}
+              currentUserId={currentUserId}
+              tripStartDate={trip?.start_date}
+              tripEndDate={trip?.end_date}
+              isMobile
+            />
+          </div>
         )}
-        {sidebarTab === "translator" && <TranslatorPanel isMobile />}
+        {sidebarTab === "translator" && (
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <TranslatorPanel isMobile />
+          </div>
+        )}
       </aside>
     );
   }

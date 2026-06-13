@@ -25,10 +25,10 @@ export function DayTabs({
   return (
     <div
       className={`shrink-0 border-b border-white/60 bg-white/40 backdrop-blur-sm ${
-        compact ? "px-2 py-2" : "px-3 py-2.5"
+        compact ? "px-2 py-1" : "px-3 py-2.5"
       }`}
     >
-      <div className="flex items-center gap-1.5 overflow-x-auto">
+      <div className="flex items-center gap-1 overflow-x-auto">
         {dailyPlans.map((plan) => {
           const active = selectedDayNumber === plan.day_number;
           return (
@@ -37,7 +37,7 @@ export function DayTabs({
               type="button"
               onClick={() => onSelectDay(plan.day_number)}
               className={`shrink-0 rounded-full font-semibold transition-all active:scale-[0.97] ${
-                compact ? "px-3 py-1.5 text-xs" : "px-3.5 py-2 text-sm"
+                compact ? "px-2.5 py-1 text-[11px]" : "px-3.5 py-2 text-sm"
               } ${
                 active
                   ? "trip-day-pill-active text-white"
@@ -49,20 +49,24 @@ export function DayTabs({
           );
         })}
 
-        <div className="ml-auto flex shrink-0 items-center gap-0.5 pl-1">
+        <div className="ml-auto flex shrink-0 items-center gap-0.5 pl-0.5">
           <button
             type="button"
             onClick={onAddDay}
-            className="touch-min flex h-10 w-10 items-center justify-center rounded-full bg-white/80 text-zinc-600 ring-1 ring-zinc-200/80 transition hover:bg-blue-50 hover:text-blue-600"
+            className={`flex items-center justify-center rounded-full bg-white/80 text-zinc-600 ring-1 ring-zinc-200/80 transition hover:bg-blue-50 hover:text-blue-600 ${
+              compact ? "h-8 w-8" : "touch-min h-10 w-10"
+            }`}
             title="일차 추가"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} />
           </button>
           <button
             type="button"
             onClick={() => onRemoveDay(selectedDayNumber)}
             disabled={!canRemove}
-            className="touch-min flex h-10 w-10 items-center justify-center rounded-full bg-white/80 text-red-500 ring-1 ring-zinc-200/80 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:text-zinc-300 disabled:hover:bg-white"
+            className={`flex items-center justify-center rounded-full bg-white/80 text-red-500 ring-1 ring-zinc-200/80 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:text-zinc-300 disabled:hover:bg-white ${
+              compact ? "h-8 w-8" : "touch-min h-10 w-10"
+            }`}
             title={
               canRemove
                 ? `${selectedDayNumber}일차 제거`
