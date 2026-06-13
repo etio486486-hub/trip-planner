@@ -11,6 +11,7 @@ import {
   Users,
 } from "lucide-react";
 import { HomeIntro, shouldShowHomeIntro } from "./HomeIntro";
+import { HomeBenefitsSection } from "./HomeBenefitsSection";
 import { PopularPlacesPanel } from "./PopularPlacesPanel";
 import { TrendingPlacesPanel } from "./TrendingPlacesPanel";
 
@@ -174,13 +175,13 @@ export function HomeLayout({ children }: HomeLayoutProps) {
           </div>
         </section>
 
-        {/* How it works — desktop strip */}
+        {/* How it works */}
         <section
-          className={`relative z-10 hidden border-y border-slate-200/50 bg-white/40 py-10 backdrop-blur-sm md:block ${
+          className={`relative z-10 border-y border-slate-200/50 bg-white/40 py-8 backdrop-blur-sm sm:py-10 ${
             revealed ? "home-enter-delay-2" : "opacity-0"
           }`}
         >
-          <div className="mx-auto grid max-w-7xl grid-cols-3 gap-8 px-5 sm:px-8">
+          <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-5 sm:grid-cols-3 sm:gap-8 sm:px-8">
             {STEPS.map((step) => (
               <div key={step.num} className="flex items-start gap-4">
                 <span className="text-2xl font-bold tabular-nums text-blue-200">
@@ -194,6 +195,11 @@ export function HomeLayout({ children }: HomeLayoutProps) {
             ))}
           </div>
         </section>
+
+        {/* Why use us — benefits & promo */}
+        <HomeBenefitsSection
+          className={`py-16 sm:py-20 ${revealed ? "home-enter-delay-2" : "opacity-0"}`}
+        />
 
         {/* Discover */}
         <section
