@@ -16,7 +16,7 @@ export function MobileMapPanelToggle({
       <button
         type="button"
         onClick={() => onFocusChange("map")}
-        className={`flex min-h-[36px] items-center gap-1 rounded-full px-2.5 py-1.5 text-[11px] font-medium ${
+        className={`flex min-h-[44px] items-center gap-1 rounded-full px-3 py-2 text-xs font-medium ${
           focus === "map"
             ? "bg-blue-600 text-white"
             : "text-zinc-600 hover:bg-zinc-100"
@@ -28,7 +28,7 @@ export function MobileMapPanelToggle({
       <button
         type="button"
         onClick={() => onFocusChange("panel")}
-        className={`flex min-h-[36px] items-center gap-1 rounded-full px-2.5 py-1.5 text-[11px] font-medium ${
+        className={`flex min-h-[44px] items-center gap-1 rounded-full px-3 py-2 text-xs font-medium ${
           focus === "panel"
             ? "bg-blue-600 text-white"
             : "text-zinc-600 hover:bg-zinc-100"

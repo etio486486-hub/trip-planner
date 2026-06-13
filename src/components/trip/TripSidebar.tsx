@@ -142,6 +142,7 @@ function ItineraryContent({
               onShowOnlySegment={onShowOnlySegment}
               onShowAllSegments={onShowAllSegments}
               onUpdatePlace={onUpdatePlace}
+              isMobile={isMobile}
             />
           </div>
         )}

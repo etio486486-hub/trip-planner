@@ -137,7 +137,7 @@ export function RouteSegmentInfo({
               type="button"
               onClick={() => onSegmentVisibilityChange(!segmentVisible)}
               title={segmentVisible ? "지도에서 숨기기" : "지도에 표시"}
-              className={`flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-medium ${
+              className={`flex items-center gap-0.5 rounded px-2 py-1 text-[10px] font-medium max-lg:min-h-[36px] max-lg:px-3 max-lg:py-2 max-lg:text-xs ${
                 segmentVisible
                   ? "bg-white text-zinc-600 ring-1 ring-zinc-200"
                   : "bg-zinc-200 text-zinc-500"
@@ -154,7 +154,7 @@ export function RouteSegmentInfo({
               type="button"
               onClick={onShowOnlySegment}
               title="이 구간만 지도에 표시"
-              className="rounded bg-white px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 ring-1 ring-zinc-200 hover:bg-zinc-100"
+              className="rounded bg-white px-2 py-1 text-[10px] font-medium text-zinc-600 ring-1 ring-zinc-200 hover:bg-zinc-100 max-lg:min-h-[36px] max-lg:px-3 max-lg:py-2 max-lg:text-xs"
             >
               이 구간만
             </button>
@@ -166,7 +166,7 @@ export function RouteSegmentInfo({
               key={m}
               type="button"
               onClick={() => onSegmentModeChange(m)}
-              className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+              className={`rounded px-2 py-1 text-[10px] font-medium max-lg:min-h-[36px] max-lg:flex-1 max-lg:px-3 max-lg:py-2 max-lg:text-xs ${
                 segmentMode === m
                   ? "bg-blue-600 text-white"
                   : "bg-white text-zinc-500 ring-1 ring-zinc-200"

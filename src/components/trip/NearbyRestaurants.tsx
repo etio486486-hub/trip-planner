@@ -130,12 +130,12 @@ export function NearbyRestaurants({ place, placeIndex }: NearbyRestaurantsProps)
                         </p>
                       )}
                     </button>
-                    <div className="flex shrink-0 flex-col gap-1">
+                    <div className="flex shrink-0 flex-col gap-1.5 max-lg:gap-2">
                       {restaurantMap && (
                         <button
                           type="button"
                           onClick={() => handlePreview(r)}
-                          className="flex items-center justify-center rounded-md border border-orange-200 p-1 text-orange-600 hover:bg-orange-50"
+                          className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md border border-orange-200 text-orange-600 hover:bg-orange-50"
                           title="지도에서 보기"
                         >
                           <MapPin className="h-3 w-3" />
@@ -150,7 +150,7 @@ export function NearbyRestaurants({ place, placeIndex }: NearbyRestaurantsProps)
                           type="button"
                           onClick={() => void handleAdd(r)}
                           disabled={addingId === r.placeId}
-                          className="flex items-center justify-center rounded-md bg-blue-600 p-1 text-white hover:bg-blue-700 disabled:opacity-50"
+                          className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
                           title="일정에 추가"
                         >
                           {addingId === r.placeId ? (

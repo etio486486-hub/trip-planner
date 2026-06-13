@@ -8,7 +8,6 @@ import {
   KeyRound,
   Loader2,
   LogOut,
-  Map,
   Plus,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -167,18 +166,13 @@ function HomeContent() {
 
   return (
     <HomeLayout>
-      <div className="overflow-hidden rounded-2xl border border-white/80 bg-white/95 p-6 shadow-xl shadow-slate-900/[0.06] ring-1 ring-slate-900/[0.04] backdrop-blur-sm">
-        <div className="mb-8 text-center">
-          <div className="mb-4 inline-flex items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 p-3 shadow-lg shadow-blue-600/25">
-            <Map className="h-8 w-8 text-white" />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-900">
-            여행 플래너
-          </h1>
-          <p className="mt-2 text-sm leading-relaxed text-zinc-500">
-            일정 · 지도 · 맛집 · 번역
-            <br />
-            <span className="text-zinc-600">함께 만드는 스마트 여행</span>
+      <div className="safe-x">
+        <div className="mb-6 text-center">
+          <h2 className="text-xl font-bold tracking-tight text-zinc-900">
+            시작하기
+          </h2>
+          <p className="mt-1.5 text-sm text-zinc-500">
+            Google로 로그인하고 여행을 만들어 보세요
           </p>
         </div>
 
@@ -309,8 +303,8 @@ function HomeContent() {
           </>
         )}
 
-        <p className="mt-8 text-center text-xs text-zinc-500">
-          <Link href="/admin" className="hover:underline">
+        <p className="mt-6 text-center text-xs text-zinc-400">
+          <Link href="/admin" className="hover:text-zinc-600 hover:underline">
             관리자
           </Link>
         </p>

@@ -98,7 +98,9 @@ export function TripChatWidget({
     return (
       <div
         className={`pointer-events-auto absolute z-30 ${
-          isMobile ? "bottom-14 right-3" : "bottom-4 right-4"
+          isMobile
+            ? "bottom-[max(3.5rem,calc(env(safe-area-inset-bottom)+3rem))] right-3"
+            : "bottom-4 right-4"
         }`}
       >
         <button
@@ -116,14 +118,16 @@ export function TripChatWidget({
   return (
     <div
       className={`pointer-events-none absolute z-30 flex flex-col items-end ${
-        isMobile ? "bottom-14 right-3" : "bottom-4 right-4"
+        isMobile
+          ? "bottom-[max(3.5rem,calc(env(safe-area-inset-bottom)+3rem))] right-3"
+          : "bottom-4 right-4"
       }`}
     >
       {open && (
         <div
           className={`pointer-events-auto mb-3 flex flex-col overflow-hidden rounded-2xl border border-zinc-200/90 bg-white shadow-2xl shadow-zinc-900/15 ${
             isMobile
-              ? "h-[min(52vh,360px)] w-[min(calc(100vw-1.5rem),320px)]"
+              ? "h-[min(50dvh,380px)] w-[min(calc(100vw-1.5rem),340px)]"
               : "h-[min(420px,55vh)] w-[min(340px,calc(100%-2rem))]"
           }`}
         >
@@ -135,7 +139,7 @@ export function TripChatWidget({
             <button
               type="button"
               onClick={() => setOpenPersist(false)}
-              className="rounded-lg p-1 hover:bg-white/20"
+              className="touch-min flex items-center justify-center rounded-lg hover:bg-white/20"
               aria-label="채팅 닫기"
             >
               <X className="h-4 w-4" />
@@ -202,7 +206,7 @@ export function TripChatWidget({
             </p>
           )}
 
-          <div className="shrink-0 border-t border-zinc-100 bg-white p-2">
+          <div className="shrink-0 border-t border-zinc-100 bg-white p-2 safe-bottom">
             <div className="flex gap-2">
               <input
                 type="text"
@@ -216,13 +220,13 @@ export function TripChatWidget({
                 }}
                 placeholder="메시지 입력..."
                 maxLength={500}
-                className="min-w-0 flex-1 rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                className="mobile-input min-w-0 flex-1 rounded-xl border border-zinc-200 px-3 py-2.5 text-base sm:text-sm"
               />
               <button
                 type="button"
                 onClick={() => void handleSend()}
                 disabled={sending || !input.trim()}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
                 aria-label="보내기"
               >
                 {sending ? (
@@ -240,7 +244,7 @@ export function TripChatWidget({
         type="button"
         onClick={() => setOpenPersist(!open)}
         className={`pointer-events-auto relative flex items-center gap-2 rounded-full bg-blue-600 text-white shadow-lg shadow-blue-600/30 transition-transform hover:bg-blue-700 active:scale-95 ${
-          open ? "h-11 px-4" : "h-12 w-12 justify-center"
+          open ? "min-h-[44px] px-4" : "h-12 w-12 justify-center"
         }`}
         aria-label={open ? "채팅 숨기기" : "멤버 채팅 열기"}
       >

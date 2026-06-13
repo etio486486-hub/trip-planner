@@ -69,7 +69,7 @@ export function PanelResizeHandle({
       className={`group z-20 flex shrink-0 items-center justify-center touch-none ${
         isHorizontal
           ? "h-full w-2 cursor-col-resize hover:bg-blue-100/80 active:bg-blue-200/80"
-          : "h-3 w-full cursor-row-resize bg-zinc-100 hover:bg-blue-100 active:bg-blue-200"
+          : "h-6 w-full cursor-row-resize bg-zinc-100 hover:bg-blue-100 active:bg-blue-200 max-lg:h-8"
       }`}
     >
       {isHorizontal ? (

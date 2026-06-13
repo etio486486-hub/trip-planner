@@ -43,10 +43,10 @@ export function MemberNameModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 px-4">
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 sm:items-center sm:px-4">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-sm rounded-xl bg-white p-6 shadow-2xl"
+        className="w-full max-w-sm rounded-t-2xl bg-white p-6 shadow-2xl sm:rounded-xl safe-bottom"
       >
         <div className="mb-4 flex items-center gap-2 text-lg font-semibold text-zinc-800">
           <User className="h-5 w-5 text-blue-600" />
@@ -61,7 +61,7 @@ export function MemberNameModal({
           onChange={(e) => setName(e.target.value)}
           placeholder="예: 민수, 지영"
           maxLength={12}
-          className="mb-2 w-full rounded-lg border border-zinc-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          className="mb-2 w-full rounded-lg border border-zinc-300 px-4 py-3 text-base outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 sm:text-sm"
           autoFocus
           disabled={saving}
         />
@@ -69,7 +69,7 @@ export function MemberNameModal({
         <button
           type="submit"
           disabled={saving}
-          className="w-full rounded-lg bg-blue-600 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+          className="w-full rounded-lg bg-blue-600 py-3.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60 min-h-[48px]"
         >
           {saving ? "저장 중..." : "참여하기"}
         </button>

@@ -86,11 +86,11 @@ export function PlaceSearch({ onAdd, compact = false }: PlaceSearchProps) {
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 px-4 pt-[12vh]"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-start sm:justify-center sm:px-4 sm:pt-[12vh]"
           onClick={() => setOpen(false)}
         >
           <div
-            className="w-full max-w-md rounded-xl bg-white p-5 shadow-2xl"
+            className="w-full max-w-md rounded-t-2xl bg-white p-5 shadow-2xl safe-bottom sm:rounded-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between">
@@ -101,7 +101,7 @@ export function PlaceSearch({ onAdd, compact = false }: PlaceSearchProps) {
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
+                className="touch-min flex items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -110,7 +110,7 @@ export function PlaceSearch({ onAdd, compact = false }: PlaceSearchProps) {
               ref={inputRef}
               type="text"
               placeholder="장소 이름을 검색하세요..."
-              className="place-search-input w-full rounded-lg border border-zinc-300 px-4 py-3 text-sm text-zinc-900 placeholder:text-zinc-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="place-search-input mobile-input w-full rounded-lg border border-zinc-300 px-4 py-3.5 text-base text-zinc-900 placeholder:text-zinc-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 sm:py-3 sm:text-sm"
               disabled={adding}
               autoFocus
             />

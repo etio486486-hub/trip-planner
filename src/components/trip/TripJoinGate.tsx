@@ -164,7 +164,7 @@ export function TripJoinGate({ tripId, children }: TripJoinGateProps) {
   if (allowed) return <>{children}</>;
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
+    <div className="flex min-h-dvh items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4 py-8 safe-x safe-bottom">
       <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-6 shadow-lg">
         <div className="mb-4 flex justify-center">
           <div className="rounded-xl bg-blue-600 p-3">

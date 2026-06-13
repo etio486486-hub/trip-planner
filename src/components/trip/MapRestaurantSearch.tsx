@@ -212,7 +212,7 @@ export function MapRestaurantSearch({
 
       <div
         ref={containerRef}
-        className="pointer-events-none absolute inset-x-0 top-3 z-20 flex justify-center px-3 sm:top-4 sm:px-4"
+        className="pointer-events-none absolute inset-x-0 top-[max(0.75rem,env(safe-area-inset-top))] z-20 flex justify-center px-3 max-lg:top-[max(0.5rem,env(safe-area-inset-top))] sm:top-4 sm:px-4"
       >
         <div className="pointer-events-auto w-full max-w-lg">
           <div className="flex items-center gap-2 rounded-2xl border border-zinc-200/90 bg-white px-3 py-2 shadow-lg shadow-black/10 ring-1 ring-black/5">
@@ -229,7 +229,7 @@ export function MapRestaurantSearch({
                   ? "맛집·음식 검색..."
                   : "예: 후쿠오카 라amen, 텐jin 스시..."
               }
-              className="min-w-0 flex-1 bg-transparent py-1 text-sm text-zinc-900 placeholder:text-zinc-400 outline-none"
+              className="min-w-0 flex-1 bg-transparent py-2 text-base text-zinc-900 placeholder:text-zinc-400 outline-none sm:py-1 sm:text-sm"
             />
             {(query || open) && (
               <button
@@ -275,7 +275,7 @@ export function MapRestaurantSearch({
                     key={tag.label}
                     type="button"
                     onClick={() => setQuery(tag.query)}
-                    className={`rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 transition-colors ${
+                    className={`rounded-full px-3 py-1.5 text-xs font-medium ring-1 transition-colors max-lg:py-2 ${
                       query === tag.query
                         ? "bg-orange-600 text-white ring-orange-600"
                         : "bg-zinc-50 text-orange-800 ring-orange-200 hover:bg-orange-50"
@@ -406,7 +406,7 @@ export function MapRestaurantSearch({
                             <button
                               type="button"
                               onClick={() => setDetailTarget(item)}
-                              className="flex items-center justify-center rounded-lg border border-zinc-200 p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700"
+              className="flex min-h-[44px] shrink-0 items-center justify-center rounded-lg border border-zinc-200 p-2 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 max-lg:min-h-[44px] max-lg:min-w-[44px]"
                               title="상세 정보"
                             >
                               <Info className="h-3.5 w-3.5" />
@@ -421,7 +421,7 @@ export function MapRestaurantSearch({
                                 type="button"
                                 onClick={() => void handleAdd(item)}
                                 disabled={addingId === item.placeId}
-                                className="flex items-center gap-0.5 rounded-lg bg-blue-600 px-2.5 py-1.5 text-[11px] font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                                className="flex min-h-[44px] items-center gap-0.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
                                 title="일정에 추가"
                               >
                                 {addingId === item.placeId ? (
@@ -445,7 +445,7 @@ export function MapRestaurantSearch({
       </div>
 
       {previewRestaurant && !open && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-4 z-20 flex justify-center px-3 sm:bottom-5">
+        <div className="pointer-events-none absolute inset-x-0 bottom-[max(1rem,calc(env(safe-area-inset-bottom)+0.75rem))] z-20 flex justify-center px-3 max-lg:bottom-[max(4.5rem,calc(env(safe-area-inset-bottom)+3.5rem))] sm:bottom-5">
           <div className="pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-2xl border border-zinc-200/90 bg-white p-3 shadow-xl shadow-black/15 ring-1 ring-black/5">
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-zinc-900">
@@ -461,7 +461,7 @@ export function MapRestaurantSearch({
               <button
                 type="button"
                 onClick={() => setDetailTarget(previewRestaurant)}
-                className="rounded-lg border border-zinc-200 px-2.5 py-1.5 text-[11px] font-medium text-zinc-600 hover:bg-zinc-50"
+                className="rounded-lg border border-zinc-200 px-2.5 py-1.5 text-[11px] font-medium text-zinc-600 hover:bg-zinc-50 min-h-[44px] sm:min-h-0"
               >
                 상세
               </button>
@@ -474,7 +474,7 @@ export function MapRestaurantSearch({
                   type="button"
                   onClick={() => void handleAdd(previewRestaurant)}
                   disabled={addingId === previewRestaurant.placeId}
-                  className="rounded-lg bg-blue-600 px-2.5 py-1.5 text-[11px] font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                  className="rounded-lg bg-blue-600 px-3 py-2.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50 min-h-[44px]"
                 >
                   추가
                 </button>

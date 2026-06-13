@@ -244,7 +244,7 @@ export function TranslatorPanel({ isMobile = false }: { isMobile?: boolean }) {
           <button
             type="button"
             onClick={swapLangs}
-            className="shrink-0 rounded-lg p-2 text-zinc-500 ring-1 ring-zinc-200 hover:bg-zinc-50"
+            className="shrink-0 rounded-lg p-2.5 text-zinc-500 ring-1 ring-zinc-200 hover:bg-zinc-50 min-h-[44px] min-w-[44px] flex items-center justify-center"
             title="언어 바꾸기"
           >
             <ArrowLeftRight className="h-4 w-4" />

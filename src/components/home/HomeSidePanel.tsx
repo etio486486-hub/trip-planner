@@ -69,7 +69,7 @@ export function HomeSidePanel({
         )}
       </div>
 
-      <div className="relative max-h-[calc(100vh-8rem)] overflow-y-auto pr-0.5">
+      <div className="relative max-h-[min(480px,60vh)] overflow-y-auto pr-0.5">
         {children}
       </div>
     </div>
