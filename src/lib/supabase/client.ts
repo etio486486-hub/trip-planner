@@ -1,4 +1,6 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 let client: SupabaseClient | null = null;
 
 const PLACEHOLDER_PATTERNS = [
@@ -36,6 +38,7 @@ export function getSupabaseSetupMessage(): string {
   ].join("\n");
 }
 
+/** 쿠키 기반 Supabase 클라이언트 — 모바일 OAuth(PKCE) 안정성 */
 export function getSupabase(): SupabaseClient {
   if (!isSupabaseConfigured()) {
     throw new Error(
@@ -44,17 +47,9 @@ export function getSupabase(): SupabaseClient {
   }
 
   if (!client) {
-    client = createClient(
+    client = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        auth: {
-          persistSession: true,
-          autoRefreshToken: true,
-          detectSessionInUrl: false,
-          storage: typeof window !== "undefined" ? window.localStorage : undefined,
-        },
-      }
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
   }
 

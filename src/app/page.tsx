@@ -56,7 +56,15 @@ function HomeContent() {
 
   useEffect(() => {
     if (authError) {
-      setError("Google 로그인에 실패했습니다. Supabase에서 Google Provider 설정을 확인해 주세요.");
+      const messages: Record<string, string> = {
+        missing_code:
+          "로그인 코드가 전달되지 않았습니다. Safari/Chrome에서 다시 시도해 주세요.",
+        supabase: "Supabase 연결 설정을 확인해 주세요.",
+      };
+      setError(
+        messages[authError] ??
+          decodeURIComponent(authError).replace(/\+/g, " ")
+      );
     }
   }, [authError]);
 

@@ -1,4 +1,5 @@
 import type { User } from "@supabase/supabase-js";
+import { storeAuthRedirect } from "@/lib/auth-callback";
 import { setCachedAuthUserId } from "@/lib/auth-cache";
 import { getSupabase } from "@/lib/supabase/client";
 import { grantTripAccess } from "@/lib/trip-access";
@@ -23,15 +24,15 @@ export function applyGoogleProfile(user: User): void {
 }
 
 export async function signInWithGoogle(redirectPath = "/"): Promise<void> {
-  const origin =
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ??
-    window.location.origin;
+  // 반드시 현재 접속 origin 사용 (Vercel preview·도메인 불일치 시 PKCE 실패 방지)
+  const origin = window.location.origin;
+
+  storeAuthRedirect(redirectPath);
 
   const { error } = await getSupabase().auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: `${origin}/auth/callback?next=${encodeURIComponent(redirectPath)}`,
-      // prompt 생략 → Google에 이미 로그인돼 있으면 자동 통과
+      redirectTo: `${origin}/auth/callback`,
       queryParams: {
         access_type: "offline",
       },
