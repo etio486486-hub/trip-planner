@@ -6,6 +6,21 @@ import {
 
 type ProAction = "grant" | "revoke";
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function validateUserId(raw: string): string | null {
+  const id = raw.trim();
+  if (!id) return "userId required";
+  if (id.startsWith("eyJ")) {
+    return "JWT 토큰이 입력되었습니다. Supabase service_role 키가 아니라, Auth 사용자 UUID(예: 051b45f6-...)를 입력해 주세요.";
+  }
+  if (!UUID_RE.test(id)) {
+    return "올바른 UUID 형식이 아닙니다. Supabase Dashboard → Authentication → Users 에서 사용자 ID를 복사해 주세요.";
+  }
+  return null;
+}
+
 export async function POST(request: Request) {
   let body: {
     password?: string;
@@ -28,6 +43,11 @@ export async function POST(request: Request) {
 
   if (!userId?.trim()) {
     return NextResponse.json({ error: "userId required" }, { status: 400 });
+  }
+
+  const userIdError = validateUserId(userId);
+  if (userIdError) {
+    return NextResponse.json({ error: userIdError }, { status: 400 });
   }
 
   const supabase = getSupabaseServiceClient();

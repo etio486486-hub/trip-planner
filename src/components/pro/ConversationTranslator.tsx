@@ -2,6 +2,9 @@
 
 import { useCallback, useState } from "react";
 import { ArrowUpDown, Loader2, Volume2 } from "lucide-react";
+import { ServerVoiceMicButton } from "@/components/pro/ServerVoiceMicButton";
+import { usePro } from "@/hooks/usePro";
+import { isServerSttSupported } from "@/lib/stt-client";
 import { speakText, translateText } from "@/lib/translate-client";
 import { getLocalKoreanReading } from "@/lib/foreign-reading";
 import { fetchKoreanReading } from "@/lib/translate-client";
@@ -21,40 +24,51 @@ export function ConversationTranslator({
   const [loadingKo, setLoadingKo] = useState(false);
   const [loadingJa, setLoadingJa] = useState(false);
   const [autoSpeak, setAutoSpeak] = useState(true);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const { hasFeature } = usePro();
+  const canServerStt = hasFeature("iphone_stt") && isServerSttSupported();
 
-  const translateKoToJa = useCallback(async () => {
-    const text = koInput.trim();
-    if (!text) return;
-    setLoadingKo(true);
-    try {
-      const result = await translateText(text, "ko", "ja");
-      setJaDisplay(result.translatedText);
-      setKoDisplay(text);
-      let reading = result.readingKo ?? getLocalKoreanReading(result.translatedText, "ja");
-      if (!reading) {
-        reading = await fetchKoreanReading(result.translatedText, "ja");
+  const translateKoToJa = useCallback(
+    async (override?: string) => {
+      const text = (override ?? koInput).trim();
+      if (!text) return;
+      setLoadingKo(true);
+      try {
+        const result = await translateText(text, "ko", "ja");
+        setJaDisplay(result.translatedText);
+        setKoDisplay(text);
+        let reading =
+          result.readingKo ??
+          getLocalKoreanReading(result.translatedText, "ja");
+        if (!reading) {
+          reading = await fetchKoreanReading(result.translatedText, "ja");
+        }
+        setKoReading(reading);
+        if (autoSpeak) await speakText(result.translatedText, "ja");
+      } finally {
+        setLoadingKo(false);
       }
-      setKoReading(reading);
-      if (autoSpeak) await speakText(result.translatedText, "ja");
-    } finally {
-      setLoadingKo(false);
-    }
-  }, [koInput, autoSpeak]);
+    },
+    [koInput, autoSpeak]
+  );
 
-  const translateJaToKo = useCallback(async () => {
-    const text = jaInput.trim();
-    if (!text) return;
-    setLoadingJa(true);
-    try {
-      const result = await translateText(text, "ja", "ko");
-      setKoDisplay(result.translatedText);
-      setJaDisplay(text);
-      setKoReading(null);
-      if (autoSpeak) await speakText(result.translatedText, "ko");
-    } finally {
-      setLoadingJa(false);
-    }
-  }, [jaInput, autoSpeak]);
+  const translateJaToKo = useCallback(
+    async (override?: string) => {
+      const text = (override ?? jaInput).trim();
+      if (!text) return;
+      setLoadingJa(true);
+      try {
+        const result = await translateText(text, "ja", "ko");
+        setKoDisplay(result.translatedText);
+        setJaDisplay(text);
+        setKoReading(null);
+        if (autoSpeak) await speakText(result.translatedText, "ko");
+      } finally {
+        setLoadingJa(false);
+      }
+    },
+    [jaInput, autoSpeak]
+  );
 
   const displaySize = isMobile ? "text-2xl" : "text-xl";
 
@@ -89,12 +103,28 @@ export function ConversationTranslator({
             rows={2}
             className="mobile-input mb-2 w-full resize-none rounded-xl border border-blue-200 bg-white px-3 py-2.5 text-base"
           />
-          <button
-            type="button"
-            onClick={() => void translateKoToJa()}
-            disabled={loadingKo || !koInput.trim()}
-            className="mb-3 flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-blue-600 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
-          >
+          <div className="mb-3 flex flex-col gap-2 sm:flex-row">
+            {canServerStt && (
+              <ServerVoiceMicButton
+                lang="ko"
+                enabled={!loadingKo}
+                compact
+                label="말하기"
+                className="sm:flex-1"
+                onTranscript={(text) => {
+                  setVoiceError(null);
+                  setKoInput(text);
+                  void translateKoToJa(text);
+                }}
+                onError={(msg) => setVoiceError(msg)}
+              />
+            )}
+            <button
+              type="button"
+              onClick={() => void translateKoToJa()}
+              disabled={loadingKo || !koInput.trim()}
+              className="flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+            >
             {loadingKo ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
@@ -103,7 +133,8 @@ export function ConversationTranslator({
                 일본어로 번역 ↓
               </>
             )}
-          </button>
+            </button>
+          </div>
 
           {jaDisplay && (
             <div className="mt-auto rounded-2xl border-2 border-blue-300 bg-white p-4 shadow-sm">
@@ -144,12 +175,28 @@ export function ConversationTranslator({
             rows={2}
             className="mobile-input mb-2 w-full resize-none rounded-xl border border-orange-200 bg-white px-3 py-2.5 text-base"
           />
-          <button
-            type="button"
-            onClick={() => void translateJaToKo()}
-            disabled={loadingJa || !jaInput.trim()}
-            className="mb-3 flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-orange-600 text-sm font-semibold text-white hover:bg-orange-700 disabled:opacity-50"
-          >
+          <div className="mb-3 flex flex-col gap-2 sm:flex-row">
+            {canServerStt && (
+              <ServerVoiceMicButton
+                lang="ja"
+                enabled={!loadingJa}
+                compact
+                label="말하기"
+                className="sm:flex-1"
+                onTranscript={(text) => {
+                  setVoiceError(null);
+                  setJaInput(text);
+                  void translateJaToKo(text);
+                }}
+                onError={(msg) => setVoiceError(msg)}
+              />
+            )}
+            <button
+              type="button"
+              onClick={() => void translateJaToKo()}
+              disabled={loadingJa || !jaInput.trim()}
+              className="flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl bg-orange-600 text-sm font-semibold text-white hover:bg-orange-700 disabled:opacity-50"
+            >
             {loadingJa ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
@@ -158,7 +205,8 @@ export function ConversationTranslator({
                 한국어로 번역 ↑
               </>
             )}
-          </button>
+            </button>
+          </div>
 
           {koDisplay && jaInput && (
             <div className="mt-auto rounded-2xl border-2 border-orange-300 bg-white p-4 shadow-sm">
@@ -182,6 +230,11 @@ export function ConversationTranslator({
           )}
         </div>
       </div>
+      {voiceError && (
+        <p className="shrink-0 border-t border-red-100 bg-red-50 px-4 py-2 text-xs text-red-700">
+          {voiceError}
+        </p>
+      )}
     </div>
   );
 }

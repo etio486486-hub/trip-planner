@@ -30,6 +30,8 @@ import { usePro } from "@/hooks/usePro";
 import { ConversationTranslator } from "@/components/pro/ConversationTranslator";
 import { ProBadge } from "@/components/pro/ProBadge";
 import { ProUpgradePanel } from "@/components/pro/ProUpgradePanel";
+import { ServerVoiceMicButton } from "@/components/pro/ServerVoiceMicButton";
+import { isServerSttSupported } from "@/lib/stt-client";
 
 type TranslatorMode = "basic" | "conversation";
 
@@ -48,6 +50,7 @@ export function TranslatorPanel({ isMobile = false }: { isMobile?: boolean }) {
   const { hasFeature } = usePro();
   const [mode, setMode] = useState<TranslatorMode>("basic");
   const canConversation = hasFeature("conversation_mode");
+  const canServerStt = hasFeature("iphone_stt") && isServerSttSupported();
   const [sourceLang, setSourceLang] = useState<TranslateLang>("ko");
   const [targetLang, setTargetLang] = useState<TranslateLang>("ja");
   const [inputText, setInputText] = useState("");
@@ -217,7 +220,7 @@ export function TranslatorPanel({ isMobile = false }: { isMobile?: boolean }) {
     setReadingKo(null);
   };
 
-  const showVoiceButton = device?.recognition;
+  const showProSttHint = Boolean(device?.isIOS && !canServerStt);
 
   if (mode === "conversation") {
     if (canConversation) {
@@ -249,18 +252,25 @@ export function TranslatorPanel({ isMobile = false }: { isMobile?: boolean }) {
           </span>
         </div>
         <p className="mt-1 text-[11px] text-zinc-500">
-          {device?.textOnlyMode
-            ? "문장을 누르거나 입력 → 번역 · 큰 글씨로 보여주기 (iPhone)"
-            : "말하면 번역 후 음성으로 들려줍니다 · 일본 여행용"}
+          {canServerStt
+            ? "Pro 음성 입력 · 말하면 서버가 인식 후 번역합니다"
+            : device?.textOnlyMode
+              ? "문장을 누르거나 입력 → 번역 · Pro 음성 입력 가능"
+              : "말하면 번역 후 음성으로 들려줍니다 · 일본 여행용"}
         </p>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3">
-        {device?.isIOS && (
+        {device?.isIOS && !canServerStt && (
           <div className="mb-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-[11px] leading-relaxed text-blue-800">
-            📱 iPhone은 음성 <strong>입력</strong>이 안 됩니다. 자주 쓰는 문장
-            버튼이나 키보드 입력 후 <strong>번역 · 다시 듣기</strong>를
-            사용하세요. (음성 출력은 가능)
+            📱 iPhone 기본은 키보드·문장 버튼을 사용합니다.{" "}
+            <strong>Pro 음성 입력</strong>으로 말해서 번역할 수 있습니다.
+          </div>
+        )}
+        {canServerStt && (
+          <div className="mb-3 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-[11px] leading-relaxed text-violet-800">
+            🎙️ Pro 음성 입력 활성 · 마이크 버튼 → 말하기 → 다시 눌러 완료 (최대
+            30초)
           </div>
         )}
 
@@ -306,7 +316,7 @@ export function TranslatorPanel({ isMobile = false }: { isMobile?: boolean }) {
         )}
 
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          {showVoiceButton ? (
+          {device?.recognition ? (
             <button
               type="button"
               onClick={listening ? stopListening : startListening}
@@ -328,12 +338,29 @@ export function TranslatorPanel({ isMobile = false }: { isMobile?: boolean }) {
                 </>
               )}
             </button>
+          ) : canServerStt ? (
+            <ServerVoiceMicButton
+              lang={sourceLang}
+              enabled={!loading}
+              onTranscript={(text) => {
+                setInputText((prev) =>
+                  prev ? `${prev} ${text}` : text
+                );
+                void doTranslate(text, true);
+              }}
+              onError={setError}
+            />
+          ) : showProSttHint ? (
+            <div className="flex flex-1 flex-col gap-2">
+              <div className="flex flex-1 items-center gap-2 rounded-xl bg-zinc-100 px-4 py-3 text-xs text-zinc-600 min-h-[48px]">
+                <MessageSquareText className="h-4 w-4 shrink-0" />
+                iPhone: 문장 버튼 · 키보드 입력
+              </div>
+            </div>
           ) : (
             <div className="flex flex-1 items-center gap-2 rounded-xl bg-zinc-100 px-4 py-3 text-xs text-zinc-600 min-h-[48px]">
               <MessageSquareText className="h-4 w-4 shrink-0" />
-              {device?.isIOS
-                ? "iPhone: 문장 버튼 · 키보드 입력 사용"
-                : "음성 입력 미지원 · 텍스트로 번역"}
+              음성 입력 미지원 · 텍스트로 번역
             </div>
           )}
 
@@ -457,7 +484,9 @@ export function TranslatorPanel({ isMobile = false }: { isMobile?: boolean }) {
       >
         {device?.recognition
           ? "마이크 권한 허용 · Android Chrome 권장"
-          : "텍스트 번역 + 음성 듣기 · Pro 대화형 모드 이용 가능"}
+          : canServerStt
+            ? "Pro 서버 STT · iPhone Safari 지원"
+            : "텍스트 번역 + 음성 듣기 · Pro 대화형 모드 이용 가능"}
       </div>
     </div>
   );

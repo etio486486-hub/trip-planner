@@ -31,7 +31,7 @@ export const PRO_FEATURES: ProFeatureDef[] = [
     description:
       "iPhone Safari에서도 말하면 번역. 서버 STT(Whisper) 연동.",
     tier: 1,
-    implemented: false,
+    implemented: true,
   },
   {
     id: "pdf_export",

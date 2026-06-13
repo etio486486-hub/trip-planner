@@ -24,6 +24,22 @@ export default function AdminPage() {
   const [proUserId, setProUserId] = useState("");
   const [proMonths, setProMonths] = useState(1);
   const [proLoading, setProLoading] = useState(false);
+  const [messageIsError, setMessageIsError] = useState(false);
+
+  const UUID_RE =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  const validateProUserId = (raw: string): string | null => {
+    const id = raw.trim();
+    if (!id) return "Supabase Auth 사용자 UUID를 입력해 주세요.";
+    if (id.startsWith("eyJ")) {
+      return "service_role JWT 키가 아닙니다. Authentication → Users 의 사용자 ID(UUID)를 입력해 주세요.";
+    }
+    if (!UUID_RE.test(id)) {
+      return "UUID 형식이 올바르지 않습니다. 예: 051b45f6-fa19-4c91-b0f0-7b4963d771d8";
+    }
+    return null;
+  };
 
   useEffect(() => {
     setAuthed(isAdminSession());
@@ -95,13 +111,16 @@ export default function AdminPage() {
   };
 
   const handleProAction = async (action: "grant" | "revoke") => {
-    if (!proUserId.trim()) {
-      setMessage("Supabase user UUID를 입력해 주세요.");
+    const validationError = validateProUserId(proUserId);
+    if (validationError) {
+      setMessage(validationError);
+      setMessageIsError(true);
       return;
     }
 
     setProLoading(true);
     setMessage(null);
+    setMessageIsError(false);
 
     try {
       const res = await fetch("/api/admin/pro", {
@@ -123,15 +142,19 @@ export default function AdminPage() {
 
       if (!res.ok) {
         setMessage(data.error ?? "Pro 설정 실패");
+        setMessageIsError(true);
       } else if (action === "grant") {
         setMessage(
-          `Pro 부여 완료 · ${data.profile?.pro_until?.slice(0, 10) ?? ""}까지`
+          `✓ Pro 부여 완료 · ${data.profile?.pro_until?.slice(0, 10) ?? ""}까지`
         );
+        setMessageIsError(false);
       } else {
-        setMessage("Pro 해제 완료");
+        setMessage("✓ Pro 해제 완료");
+        setMessageIsError(false);
       }
     } catch {
       setMessage("네트워크 오류");
+      setMessageIsError(true);
     }
 
     setProLoading(false);
@@ -205,7 +228,13 @@ export default function AdminPage() {
         </div>
 
         {message && (
-          <div className="mb-4 rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-800">
+          <div
+            className={`mb-4 rounded-lg px-3 py-2 text-sm ${
+              messageIsError
+                ? "bg-red-50 text-red-800"
+                : "bg-green-50 text-green-800"
+            }`}
+          >
             {message}
           </div>
         )}
@@ -215,21 +244,33 @@ export default function AdminPage() {
             <Crown className="h-5 w-5 text-amber-600" />
             <h2 className="text-base font-bold text-zinc-900">Pro 부여</h2>
           </div>
-          <p className="mb-4 text-sm text-zinc-600">
-            Supabase Auth 사용자 UUID로 Pro를 활성화합니다.{" "}
-            <code className="rounded bg-zinc-100 px-1 text-xs">user_profiles</code>{" "}
-            마이그레이션과{" "}
-            <code className="rounded bg-zinc-100 px-1 text-xs">
-              SUPABASE_SERVICE_ROLE_KEY
-            </code>{" "}
-            환경 변수가 필요합니다.
-          </p>
+          <div className="mb-4 space-y-2 text-sm text-zinc-600">
+            <p>
+              <strong className="text-zinc-800">① Vercel 환경 변수</strong>{" "}
+              <code className="rounded bg-zinc-100 px-1 text-xs">
+                SUPABASE_SERVICE_ROLE_KEY
+              </code>{" "}
+              = Supabase API의 service_role <em>secret</em> (입력란에 넣지
+              않음)
+            </p>
+            <p>
+              <strong className="text-zinc-800">② 아래 입력란</strong> = Pro
+              받을 <em>사용자 UUID</em> · Supabase Dashboard → Authentication →
+              Users → 해당 사용자 ID 복사
+            </p>
+            <p className="text-xs text-zinc-500">
+              예시 UUID:{" "}
+              <code className="rounded bg-zinc-100 px-1">
+                051b45f6-fa19-4c91-b0f0-7b4963d771d8
+              </code>
+            </p>
+          </div>
           <div className="space-y-3">
             <input
               type="text"
               value={proUserId}
               onChange={(e) => setProUserId(e.target.value)}
-              placeholder="사용자 UUID (auth.users.id)"
+              placeholder="051b45f6-fa19-4c91-b0f0-7b4963d771d8"
               className="w-full rounded-lg border border-zinc-300 px-3 py-2.5 font-mono text-sm"
             />
             <div className="flex flex-wrap items-center gap-3">
