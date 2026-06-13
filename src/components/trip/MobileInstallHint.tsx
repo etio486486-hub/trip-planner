@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Download, Share, X } from "lucide-react";
+import { useAppSettings } from "@/components/settings/SettingsProvider";
 
 const DISMISS_KEY = "trip-planner-install-hint-dismissed";
 
@@ -20,11 +21,12 @@ function isMobileDevice(): boolean {
 }
 
 export function MobileInstallHint() {
+  const { settings } = useAppSettings();
   const [visible, setVisible] = useState(false);
   const [isIos, setIsIos] = useState(false);
 
   useEffect(() => {
-    if (!isMobileDevice() || isStandalone()) return;
+    if (!isMobileDevice() || isStandalone() || settings.hidePwaInstallHint) return;
     try {
       if (sessionStorage.getItem(DISMISS_KEY) === "1") return;
     } catch {
@@ -32,7 +34,7 @@ export function MobileInstallHint() {
     }
     setIsIos(/iPhone|iPad|iPod/i.test(navigator.userAgent));
     setVisible(true);
-  }, []);
+  }, [settings.hidePwaInstallHint]);
 
   if (!visible) return null;
 

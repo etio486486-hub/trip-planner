@@ -3,6 +3,7 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --app-font-scale: 1;
 }
 
 @theme inline {
@@ -21,6 +22,7 @@
 
 html {
   height: 100%;
+  font-size: calc(16px * var(--app-font-scale, 1));
   -webkit-text-size-adjust: 100%;
   overscroll-behavior: none;
 }
@@ -298,6 +300,15 @@ body {
   }
 }
 
+html.app-reduce-motion *,
+html.app-reduce-motion *::before,
+html.app-reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
 /* ── 모바일 공통 ── */
 .safe-top {
   padding-top: env(safe-area-inset-top);
@@ -313,7 +324,7 @@ body {
 }
 
 .mobile-input {
-  font-size: 16px !important;
+  font-size: max(16px, calc(16px * var(--app-font-scale, 1))) !important;
   -webkit-text-fill-color: #171717;
 }
 

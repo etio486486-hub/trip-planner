@@ -15,6 +15,7 @@ import { HomeBenefitsSection } from "./HomeBenefitsSection";
 import { HomeProSection } from "@/components/pro/HomeProSection";
 import { PopularPlacesPanel } from "./PopularPlacesPanel";
 import { TrendingPlacesPanel } from "./TrendingPlacesPanel";
+import { SettingsTrigger } from "@/components/settings/SettingsTrigger";
 
 type HomeLayoutProps = {
   children: ReactNode;
@@ -87,15 +88,18 @@ export function HomeLayout({ children }: HomeLayoutProps) {
                 </p>
               </div>
             </div>
-            <div className="hidden items-center gap-6 text-xs font-medium text-zinc-500 md:flex">
-              <span className="flex items-center gap-1.5">
-                <Users className="h-3.5 w-3.5 text-blue-500" />
-                실시간 협업
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-                Google Maps
-              </span>
+            <div className="flex items-center gap-2">
+              <div className="hidden items-center gap-6 text-xs font-medium text-zinc-500 md:flex">
+                <span className="flex items-center gap-1.5">
+                  <Users className="h-3.5 w-3.5 text-blue-500" />
+                  실시간 협업
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                  Google Maps
+                </span>
+              </div>
+              <SettingsTrigger compact />
             </div>
           </div>
         </header>

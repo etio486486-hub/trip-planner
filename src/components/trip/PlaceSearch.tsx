@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { MapPin, Plus, X } from "lucide-react";
 import { useMapsLibrary } from "@vis.gl/react-google-maps";
@@ -8,9 +8,6 @@ import { useVisualViewport } from "@/hooks/useVisualViewport";
 import { isMapsConfigured } from "./MapsProvider";
 import { MapsSetupGuide } from "./MapsSetupGuide";
 import type { PlaceInput } from "@/types/database";
-
-const MOBILE_NAV_OFFSET =
-  "calc(3.75rem + env(safe-area-inset-bottom, 0px))";
 
 type PlaceSearchProps = {
   onAdd: (place: PlaceInput) => Promise<void>;
@@ -97,56 +94,41 @@ export function PlaceSearch({ onAdd, compact = false }: PlaceSearchProps) {
     );
   }
 
-  const mobileSheetStyle: CSSProperties =
-    keyboardOpen && visibleHeight != null
-      ? {
-          top: `${offsetTop + 8}px`,
-          bottom: "auto",
-          maxHeight: `${Math.max(160, visibleHeight - 16)}px`,
-        }
-      : {
-          bottom: MOBILE_NAV_OFFSET,
-        };
-
   const overlay = open && (
-    <>
-      <div
-        className={`fixed inset-0 bg-black/45 backdrop-blur-[1px] ${
-          compact ? "z-[52]" : "z-50"
-        }`}
-        onClick={() => setOpen(false)}
-        aria-hidden
-      />
+    <div
+      className={`fixed inset-0 flex justify-center bg-black/45 px-4 backdrop-blur-[1px] ${
+        compact
+          ? "z-[52] items-center"
+          : "z-50 items-start pt-[12vh] sm:items-center sm:pt-0"
+      }`}
+      style={
+        compact && keyboardOpen && visibleHeight != null
+          ? {
+              alignItems: "flex-start",
+              paddingTop: offsetTop + 12,
+              height: visibleHeight,
+            }
+          : undefined
+      }
+      onClick={() => setOpen(false)}
+    >
       <div
         role="dialog"
         aria-label="장소 검색"
-        className={`fixed flex flex-col overflow-hidden bg-white shadow-2xl ${
-          compact
-            ? "inset-x-0 z-[53] rounded-t-2xl border border-zinc-200/80"
-            : "z-50 w-full max-w-md rounded-t-2xl sm:rounded-xl"
+        className={`flex w-full flex-col overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-2xl ${
+          compact ? "max-w-sm" : "max-w-md"
         }`}
         style={
-          compact
-            ? mobileSheetStyle
-            : {
-                left: "50%",
-                top: "12vh",
-                transform: "translateX(-50%)",
-                maxWidth: "28rem",
-              }
+          compact && keyboardOpen && visibleHeight != null
+            ? { maxHeight: Math.max(180, visibleHeight - 32) }
+            : undefined
         }
         onClick={(e) => e.stopPropagation()}
       >
-        {compact && (
-          <div className="flex shrink-0 justify-center pt-2">
-            <div className="h-1 w-10 rounded-full bg-zinc-200" />
-          </div>
-        )}
-
         <div
           className={
             compact
-              ? "flex shrink-0 items-center justify-between gap-2 px-4 pb-2 pt-1"
+              ? "flex shrink-0 items-center justify-between gap-2 px-4 pb-2 pt-4"
               : "flex items-center justify-between p-5 pb-0"
           }
         >
@@ -168,14 +150,14 @@ export function PlaceSearch({ onAdd, compact = false }: PlaceSearchProps) {
           </button>
         </div>
 
-        <div className={compact ? "px-4 pb-3 pt-1" : "p-5 pt-3"}>
+        <div className={compact ? "px-4 pb-4 pt-1" : "p-5 pt-3"}>
           <input
             ref={inputRef}
             type="text"
             placeholder="장소 이름 검색..."
             className="place-search-input mobile-input w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-base text-zinc-900 placeholder:text-zinc-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 sm:text-sm"
             disabled={adding}
-            autoFocus={!compact}
+            autoFocus
           />
           {adding ? (
             <p className="mt-2 text-xs text-blue-600">장소 추가 중...</p>
@@ -185,12 +167,8 @@ export function PlaceSearch({ onAdd, compact = false }: PlaceSearchProps) {
             </p>
           )}
         </div>
-
-        {compact && !keyboardOpen && (
-          <div className="h-[env(safe-area-inset-bottom,0px)] shrink-0" />
-        )}
       </div>
-    </>
+    </div>
   );
 
   return (

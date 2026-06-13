@@ -36,6 +36,7 @@ import {
 import { usePro } from "@/hooks/usePro";
 import { ProBadge } from "@/components/pro/ProBadge";
 import { ProUpgradePanel } from "@/components/pro/ProUpgradePanel";
+import { SettingsTrigger } from "@/components/settings/SettingsTrigger";
 import { formatProUntil } from "@/lib/pro";
 import { FREE_TRIP_LIMIT } from "@/lib/pro-features";
 
@@ -293,14 +294,17 @@ function HomeContent() {
                   </p>
                 )}
               </div>
-              <button
-                type="button"
-                onClick={() => signOut()}
-                className="flex shrink-0 items-center gap-1 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs text-zinc-600 hover:bg-white"
-              >
-                <LogOut className="h-3.5 w-3.5" />
-                로그아웃
-              </button>
+              <div className="flex shrink-0 items-center gap-1">
+                <SettingsTrigger compact />
+                <button
+                  type="button"
+                  onClick={() => signOut()}
+                  className="flex shrink-0 items-center gap-1 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs text-zinc-600 hover:bg-white"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                  로그아웃
+                </button>
+              </div>
             </div>
 
             {error && (

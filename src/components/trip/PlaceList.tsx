@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import {
   DndContext,
   closestCenter,
@@ -52,6 +53,8 @@ type PlaceListProps = {
   onShowAllSegments: () => void;
   onUpdatePlace: (placeId: string, data: PlaceScheduleUpdate) => Promise<void>;
   isMobile?: boolean;
+  scrollToPlaceId?: string | null;
+  onScrollToPlaceDone?: () => void;
 };
 
 function SortablePlaceItem({
@@ -166,7 +169,24 @@ export function PlaceList({
   onShowAllSegments,
   onUpdatePlace,
   isMobile = false,
+  scrollToPlaceId,
+  onScrollToPlaceDone,
 }: PlaceListProps) {
+  useEffect(() => {
+    if (!scrollToPlaceId) return;
+
+    const scroll = () => {
+      const el = document.getElementById(`place-item-${scrollToPlaceId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      onScrollToPlaceDone?.();
+    };
+
+    const t = window.setTimeout(scroll, 120);
+    return () => window.clearTimeout(t);
+  }, [scrollToPlaceId, onScrollToPlaceDone]);
+
   const hasHiddenSegment =
     routeLegs.length > 0 &&
     routeLegs.some(
@@ -232,7 +252,15 @@ export function PlaceList({
             </button>
           )}
           {places.map((place, index) => (
-            <div key={place.id} className="flex flex-col gap-2">
+            <div
+              key={place.id}
+              id={`place-item-${place.id}`}
+              className={`flex flex-col gap-2 scroll-mt-3 ${
+                selectedPlaceId === place.id
+                  ? "rounded-2xl ring-2 ring-blue-400/80"
+                  : ""
+              }`}
+            >
               <SortablePlaceItem
                 place={place}
                 index={index}

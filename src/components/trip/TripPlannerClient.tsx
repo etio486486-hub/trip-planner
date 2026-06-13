@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle } from "lucide-react";
 import {
   inferMobileFocusFromPanelPercent,
@@ -33,7 +33,7 @@ import { MapFeatureButtons } from "./MapFeatureButtons";
 import { MapToolsDock } from "./MapToolsDock";
 import { PanelResizeHandle } from "./PanelResizeHandle";
 import { RestaurantMapProvider } from "./RestaurantMapContext";
-import { TripSidebar } from "./TripSidebar";
+import { TripSidebar, type MobileItineraryLayout } from "./TripSidebar";
 import type { SidebarTab } from "./TripMenuTabs";
 import { getDestinationTheme } from "@/lib/trip-destination-theme";
 import {
@@ -42,6 +42,7 @@ import {
   getDayDate,
   getDestinationLabel,
 } from "@/lib/trip-ai-course";
+import { useAppSettings } from "@/components/settings/SettingsProvider";
 
 type TripPlannerClientProps = {
   tripId: string;
@@ -58,6 +59,9 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
   >({});
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("itinerary");
   const [mobileFocus, setMobileFocus] = useState<MobilePanelFocus>("panel");
+  const [scrollToPlaceId, setScrollToPlaceId] = useState<string | null>(null);
+
+  const { registerMobileViewHandler, settings: appSettings } = useAppSettings();
 
   const {
     isMobile,
@@ -72,9 +76,28 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
     (focus: MobilePanelFocus) => {
       setMobileFocus(focus);
       resizeMobilePanel(PANEL_DEFAULTS.mobileSnap[focus]);
+      if (focus === "half") {
+        setSidebarTab("itinerary");
+      }
     },
     [resizeMobilePanel]
   );
+
+  const mobileViewBootstrapped = useRef(false);
+
+  useEffect(() => {
+    if (!isMobile) {
+      registerMobileViewHandler(null);
+      mobileViewBootstrapped.current = false;
+      return;
+    }
+    registerMobileViewHandler(handleMobileFocusChange);
+    if (!mobileViewBootstrapped.current) {
+      mobileViewBootstrapped.current = true;
+      handleMobileFocusChange(appSettings.mobileDefaultView);
+    }
+    return () => registerMobileViewHandler(null);
+  }, [isMobile, registerMobileViewHandler, handleMobileFocusChange]);
 
   const syncMobileFocusFromPanel = useCallback(
     (panelPercent: number) => {
@@ -265,6 +288,27 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
     [isMobile, handleMobileFocusChange]
   );
 
+  const handleMapPlaceClick = useCallback(
+    (placeId: string) => {
+      if (isMobile) {
+        setSidebarTab("itinerary");
+        setFocusedPlaceId(placeId);
+        setScrollToPlaceId(placeId);
+        handleMobileFocusChange("panel");
+        return;
+      }
+      setFocusedPlaceId((prev) => (prev === placeId ? null : placeId));
+    },
+    [isMobile, handleMobileFocusChange]
+  );
+
+  const mobileItineraryLayout: MobileItineraryLayout =
+    mobileFocus === "half" ? "compact" : "full";
+
+  const showMobileMap = mobileFocus !== "panel";
+  const showMobilePanel = mobileFocus !== "map";
+  const showMobileSplitHandle = showMobileMap && showMobilePanel;
+
   const sidebarProps = {
     tripId,
     trip,
@@ -301,6 +345,9 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
     sidebarTab,
     checklist,
     expenses,
+    mobileItineraryLayout,
+    scrollToPlaceId,
+    onScrollToPlaceDone: () => setScrollToPlaceId(null),
   };
 
   const mapProps = {
@@ -308,9 +355,7 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
     focusedPlaceId,
     routeSegments: visibleRouteSegments,
     routesLoading,
-    onPlaceClick: (placeId: string) => {
-      setFocusedPlaceId((prev) => (prev === placeId ? null : placeId));
-    },
+    onPlaceClick: handleMapPlaceClick,
   };
 
   return (
@@ -348,44 +393,72 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
         >
           {isMobile ? (
             <>
-              <main
-                className="relative min-h-0 w-full overflow-hidden rounded-t-2xl ring-1 ring-white/70 shadow-lg"
-                style={{
-                  flex: `0 0 ${mapHeightPercent}%`,
-                  minHeight: "22%",
-                  maxHeight: "78%",
-                }}
-              >
-                <TripMap {...mapProps} />
-                <MapToolsDock {...mapToolsProps} isMobile />
-              </main>
-              <div className="relative z-20 shrink-0">
-                <PanelResizeHandle
-                  direction="vertical"
-                  onResize={(delta) => {
-                    if (typeof window === "undefined") return;
-                    const deltaPercent = (delta / window.innerHeight) * 100;
-                    const next = Math.min(
-                      PANEL_DEFAULTS.maxMobilePanelPercent,
-                      Math.max(
-                        PANEL_DEFAULTS.minMobilePanelPercent,
-                        mobilePanelPercent + deltaPercent
-                      )
-                    );
-                    resizeMobilePanel(next);
-                    syncMobileFocusFromPanel(next);
-                  }}
-                />
-                <div className="pointer-events-none absolute inset-x-0 top-1/2 z-30 flex -translate-y-1/2 justify-center px-3">
-                  <MobileMapPanelToggle
-                    focus={mobileFocus}
-                    onFocusChange={handleMobileFocusChange}
+              {showMobileMap && (
+                <main
+                  className="relative min-h-0 w-full overflow-hidden rounded-t-2xl ring-1 ring-white/70 shadow-lg"
+                  style={
+                    mobileFocus === "half"
+                      ? {
+                          flex: `0 0 ${mapHeightPercent}%`,
+                          minHeight: "28%",
+                          maxHeight: "72%",
+                        }
+                      : { flex: "1 1 auto" }
+                  }
+                >
+                  <TripMap {...mapProps} />
+                  {mobileFocus === "map" && (
+                    <MapToolsDock {...mapToolsProps} isMobile />
+                  )}
+                  {!showMobilePanel && (
+                    <div className="pointer-events-none absolute inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-20 flex justify-center px-3">
+                      <MobileMapPanelToggle
+                        focus={mobileFocus}
+                        onFocusChange={handleMobileFocusChange}
+                      />
+                    </div>
+                  )}
+                </main>
+              )}
+              {showMobileSplitHandle && (
+                <div className="relative z-20 shrink-0">
+                  <PanelResizeHandle
+                    direction="vertical"
+                    onResize={(delta) => {
+                      if (typeof window === "undefined") return;
+                      const deltaPercent = (delta / window.innerHeight) * 100;
+                      const next = Math.min(
+                        PANEL_DEFAULTS.maxMobilePanelPercent,
+                        Math.max(
+                          PANEL_DEFAULTS.minMobilePanelPercent,
+                          mobilePanelPercent + deltaPercent
+                        )
+                      );
+                      resizeMobilePanel(next);
+                      syncMobileFocusFromPanel(next);
+                    }}
                   />
+                  <div className="pointer-events-none absolute inset-x-0 top-1/2 z-30 flex -translate-y-1/2 justify-center px-3">
+                    <MobileMapPanelToggle
+                      focus={mobileFocus}
+                      onFocusChange={handleMobileFocusChange}
+                    />
+                  </div>
                 </div>
-              </div>
-              <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-t-2xl bg-white/90 shadow-[0_-8px_32px_-8px_rgba(15,23,42,0.12)] ring-1 ring-white/80 backdrop-blur-xl mobile-panel-with-nav">
-                <TripSidebar {...sidebarProps} isMobile />
-              </div>
+              )}
+              {showMobilePanel && (
+                <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-t-2xl bg-white/90 shadow-[0_-8px_32px_-8px_rgba(15,23,42,0.12)] ring-1 ring-white/80 backdrop-blur-xl mobile-panel-with-nav">
+                  {!showMobileMap && (
+                    <div className="pointer-events-auto sticky top-0 z-20 flex shrink-0 justify-center border-b border-white/60 bg-white/90 px-3 py-2 backdrop-blur-md">
+                      <MobileMapPanelToggle
+                        focus={mobileFocus}
+                        onFocusChange={handleMobileFocusChange}
+                      />
+                    </div>
+                  )}
+                  <TripSidebar {...sidebarProps} isMobile />
+                </div>
+              )}
               <MobileBottomNav
                 activeTab={sidebarTab}
                 panelFocus={mobileFocus}

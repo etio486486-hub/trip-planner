@@ -8,14 +8,14 @@ export const PANEL_DEFAULTS = {
   sidebarWidth: 380,
   minSidebarWidth: 300,
   maxSidebarWidth: 560,
-  mobilePanelPercent: 85,
-  minMobilePanelPercent: 22,
-  maxMobilePanelPercent: 88,
+  mobilePanelPercent: 100,
+  minMobilePanelPercent: 0,
+  maxMobilePanelPercent: 100,
   /** map / half / panel 스냅 (panel %) */
   mobileSnap: {
-    map: 25,
+    map: 0,
     half: 50,
-    panel: 85,
+    panel: 100,
   } as const,
 } as const;
 
@@ -66,10 +66,9 @@ function clamp(value: number, min: number, max: number) {
 export function inferMobileFocusFromPanelPercent(
   panelPercent: number
 ): "map" | "half" | "panel" {
-  const mapPercent = 100 - panelPercent;
-  if (mapPercent >= 58) return "map";
-  if (mapPercent >= 38) return "half";
-  return "panel";
+  if (panelPercent <= 12) return "map";
+  if (panelPercent >= 75) return "panel";
+  return "half";
 }
 
 export function useResizablePanel() {

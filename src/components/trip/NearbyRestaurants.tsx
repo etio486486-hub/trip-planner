@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Check,
   ChevronDown,
@@ -15,6 +15,7 @@ import type { NearbyRestaurant } from "@/lib/maps/places-api";
 import type { Place } from "@/types/database";
 import { RestaurantDetailModal } from "./RestaurantDetailModal";
 import { useRestaurantMapOptional } from "./RestaurantMapContext";
+import { useAppSettings } from "@/components/settings/SettingsProvider";
 
 type NearbyRestaurantsProps = {
   place: Place;
@@ -22,6 +23,7 @@ type NearbyRestaurantsProps = {
 };
 
 export function NearbyRestaurants({ place, placeIndex }: NearbyRestaurantsProps) {
+  const { settings } = useAppSettings();
   const restaurantMap = useRestaurantMapOptional();
   const { restaurants, loading } = useNearbyRestaurants(
     place.latitude,
@@ -30,7 +32,11 @@ export function NearbyRestaurants({ place, placeIndex }: NearbyRestaurantsProps)
   const [selectedRestaurant, setSelectedRestaurant] =
     useState<NearbyRestaurant | null>(null);
   const [addingId, setAddingId] = useState<string | null>(null);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(settings.expandNearbyRestaurants);
+
+  useEffect(() => {
+    setOpen(settings.expandNearbyRestaurants);
+  }, [settings.expandNearbyRestaurants]);
 
   const summary = loading
     ? "검색 중…"

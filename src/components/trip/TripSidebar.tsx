@@ -26,6 +26,9 @@ import type {
   PlaceInput,
 } from "@/types/database";
 import { TripShareMenu } from "./TripShareMenu";
+import { SettingsTrigger } from "@/components/settings/SettingsTrigger";
+
+export type MobileItineraryLayout = "full" | "compact";
 
 type TripSidebarProps = {
   tripId: string;
@@ -73,6 +76,9 @@ type TripSidebarProps = {
   checklist: ReturnType<typeof useTripChecklist>;
   expenses: ReturnType<typeof useTripExpenses>;
   isMobile?: boolean;
+  mobileItineraryLayout?: MobileItineraryLayout;
+  scrollToPlaceId?: string | null;
+  onScrollToPlaceDone?: () => void;
 };
 
 function ItineraryContent({
@@ -92,6 +98,8 @@ function ItineraryContent({
   onAddPlace,
   onUpdatePlace,
   isMobile,
+  scrollToPlaceId,
+  onScrollToPlaceDone,
 }: {
   loading: boolean;
   places: Place[];
@@ -117,6 +125,8 @@ function ItineraryContent({
   onAddPlace: (place: PlaceInput) => Promise<void>;
   onUpdatePlace: (placeId: string, data: PlaceScheduleUpdate) => Promise<void>;
   isMobile?: boolean;
+  scrollToPlaceId?: string | null;
+  onScrollToPlaceDone?: () => void;
 }) {
   return (
     <>
@@ -142,6 +152,8 @@ function ItineraryContent({
               onShowAllSegments={onShowAllSegments}
               onUpdatePlace={onUpdatePlace}
               isMobile={isMobile}
+              scrollToPlaceId={scrollToPlaceId}
+              onScrollToPlaceDone={onScrollToPlaceDone}
             />
           </div>
         )}
@@ -194,6 +206,9 @@ export function TripSidebar({
   checklist,
   expenses,
   isMobile = false,
+  mobileItineraryLayout = "full",
+  scrollToPlaceId,
+  onScrollToPlaceDone,
 }: TripSidebarProps) {
   const onlineCount = onlineUsers.length;
   const teamSummary = `멤버 ${members.length}명${onlineCount > 0 ? ` · 온라인 ${onlineCount}` : ""}`;
@@ -212,35 +227,54 @@ export function TripSidebar({
     />
   );
 
+  const headerActions = (
+    <>
+      <SettingsTrigger compact={isMobile} />
+      {shareMenu}
+    </>
+  );
+
   if (isMobile) {
+    const compactItinerary =
+      sidebarTab === "itinerary" && mobileItineraryLayout === "compact";
+
     return (
       <aside className="trip-sidebar-panel flex h-full w-full min-w-0 flex-col">
-        <TripHeader
-          trip={trip}
-          dayCount={dailyPlans.length}
-          onUpdate={onUpdateTrip}
-          compact
-          rightActions={shareMenu}
-        />
+        {!compactItinerary && (
+          <TripHeader
+            trip={trip}
+            dayCount={dailyPlans.length}
+            onUpdate={onUpdateTrip}
+            compact
+            rightActions={headerActions}
+          />
+        )}
 
         {sidebarTab === "itinerary" && (
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <CollapsibleSection title="팀 · 초대" summary={teamSummary} dense>
-              <InviteMembers
-                tripId={tripId}
-                inviteCode={trip?.invite_code}
-                compact
-              />
-              <MemberList
-                members={members}
-                onlineUsers={onlineUsers}
-                currentUserId={currentUserId}
-                creatorId={creatorId}
-                onUpdateName={onUpdateDisplayName}
-                onKickMember={onKickMember}
-                compact
-              />
-            </CollapsibleSection>
+            {compactItinerary && (
+              <div className="flex shrink-0 justify-end border-b border-white/50 px-2 py-1">
+                <SettingsTrigger compact />
+              </div>
+            )}
+            {!compactItinerary && (
+              <CollapsibleSection title="팀 · 초대" summary={teamSummary} dense>
+                <InviteMembers
+                  tripId={tripId}
+                  inviteCode={trip?.invite_code}
+                  compact
+                />
+                <MemberList
+                  members={members}
+                  onlineUsers={onlineUsers}
+                  currentUserId={currentUserId}
+                  creatorId={creatorId}
+                  onUpdateName={onUpdateDisplayName}
+                  onKickMember={onKickMember}
+                  compact
+                />
+              </CollapsibleSection>
+            )}
 
             <div className="sticky top-0 z-10 shrink-0">
               <DayTabs
@@ -270,6 +304,8 @@ export function TripSidebar({
               onAddPlace={onAddPlace}
               onUpdatePlace={onUpdatePlace}
               isMobile
+              scrollToPlaceId={scrollToPlaceId}
+              onScrollToPlaceDone={onScrollToPlaceDone}
             />
           </div>
         )}
@@ -311,7 +347,7 @@ export function TripSidebar({
         trip={trip}
         dayCount={dailyPlans.length}
         onUpdate={onUpdateTrip}
-        rightActions={shareMenu}
+        rightActions={headerActions}
       />
 
       {sidebarTab === "itinerary" && (
