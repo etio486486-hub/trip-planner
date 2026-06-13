@@ -242,7 +242,7 @@ function ItineraryContent({
             <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
           </div>
         ) : (
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-4 pt-1 max-lg:pb-20">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-2 pt-1">
             <PlaceList
               places={places}
               selectedPlaceId={selectedPlaceId}
@@ -266,7 +266,7 @@ function ItineraryContent({
       <div
         className={
           isMobile
-            ? "shrink-0 border-t border-zinc-200 bg-white pb-[env(safe-area-inset-bottom)]"
+            ? "sticky bottom-0 z-10 shrink-0 border-t border-white/70 bg-white/95 backdrop-blur-md"
             : undefined
         }
       >

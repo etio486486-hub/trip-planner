@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { MapPin, Plus, X } from "lucide-react";
 import { useMapsLibrary } from "@vis.gl/react-google-maps";
+import { useVisualViewport } from "@/hooks/useVisualViewport";
 import { isMapsConfigured } from "./MapsProvider";
 import { MapsSetupGuide } from "./MapsSetupGuide";
 import type { PlaceInput } from "@/types/database";
@@ -18,6 +19,9 @@ export function PlaceSearch({ onAdd, compact = false }: PlaceSearchProps) {
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
   const [open, setOpen] = useState(false);
   const [adding, setAdding] = useState(false);
+  const { visibleHeight, offsetTop, keyboardOpen } = useVisualViewport(
+    open && compact
+  );
 
   useEffect(() => {
     if (!placesLib || !inputRef.current || !open) return;
@@ -86,11 +90,23 @@ export function PlaceSearch({ onAdd, compact = false }: PlaceSearchProps) {
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-start sm:justify-center sm:px-4 sm:pt-[12vh]"
+          className="fixed inset-0 z-50 flex justify-center bg-black/40 sm:items-start sm:px-4 sm:pt-[12vh]"
+          style={
+            compact && keyboardOpen && visibleHeight != null
+              ? { alignItems: "flex-start", paddingTop: offsetTop + 8 }
+              : compact
+                ? { alignItems: "flex-end" }
+                : undefined
+          }
           onClick={() => setOpen(false)}
         >
           <div
             className="w-full max-w-md rounded-t-2xl bg-white p-5 shadow-2xl safe-bottom sm:rounded-xl"
+            style={
+              compact && keyboardOpen && visibleHeight != null
+                ? { maxHeight: visibleHeight - 16 }
+                : undefined
+            }
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between">

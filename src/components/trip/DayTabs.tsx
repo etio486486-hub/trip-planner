@@ -53,7 +53,7 @@ export function DayTabs({
           <button
             type="button"
             onClick={onAddDay}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-white/80 text-zinc-600 ring-1 ring-zinc-200/80 transition hover:bg-blue-50 hover:text-blue-600"
+            className="touch-min flex h-10 w-10 items-center justify-center rounded-full bg-white/80 text-zinc-600 ring-1 ring-zinc-200/80 transition hover:bg-blue-50 hover:text-blue-600"
             title="일차 추가"
           >
             <Plus className="h-4 w-4" />
@@ -62,7 +62,7 @@ export function DayTabs({
             type="button"
             onClick={() => onRemoveDay(selectedDayNumber)}
             disabled={!canRemove}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-white/80 text-red-500 ring-1 ring-zinc-200/80 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:text-zinc-300 disabled:hover:bg-white"
+            className="touch-min flex h-10 w-10 items-center justify-center rounded-full bg-white/80 text-red-500 ring-1 ring-zinc-200/80 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:text-zinc-300 disabled:hover:bg-white"
             title={
               canRemove
                 ? `${selectedDayNumber}일차 제거`

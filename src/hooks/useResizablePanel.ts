@@ -9,8 +9,14 @@ export const PANEL_DEFAULTS = {
   minSidebarWidth: 300,
   maxSidebarWidth: 560,
   mobilePanelPercent: 82,
-  minMobilePanelPercent: 18,
+  minMobilePanelPercent: 22,
   maxMobilePanelPercent: 88,
+  /** map / half / panel 스냅 (panel %) */
+  mobileSnap: {
+    map: 25,
+    half: 50,
+    panel: 82,
+  } as const,
 } as const;
 
 type PanelSizeState = {
@@ -54,6 +60,16 @@ function loadSaved(): PanelSizeState {
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
+}
+
+/** 드래그 후 패널 비율 → 지도/반반/일정 포커스 */
+export function inferMobileFocusFromPanelPercent(
+  panelPercent: number
+): "map" | "half" | "panel" {
+  const mapPercent = 100 - panelPercent;
+  if (mapPercent >= 58) return "map";
+  if (mapPercent >= 38) return "half";
+  return "panel";
 }
 
 export function useResizablePanel() {

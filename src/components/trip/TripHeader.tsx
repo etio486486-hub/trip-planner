@@ -8,6 +8,7 @@ import {
   formatTripDateRange,
   getDestinationTheme,
 } from "@/lib/trip-destination-theme";
+import { markPreferHome } from "@/lib/trip-home-nav";
 import type { Trip } from "@/types/database";
 
 type TripHeaderProps = {
@@ -160,6 +161,7 @@ export function TripHeader({
           <div className="mb-2 flex items-center justify-between gap-2">
             <Link
               href="/"
+              onClick={() => markPreferHome()}
               className="flex items-center gap-2 rounded-xl border border-white/80 bg-white/70 px-2 py-1.5 text-[11px] font-semibold text-zinc-600 shadow-sm backdrop-blur-sm transition hover:bg-white hover:text-zinc-900"
               title="홈으로"
             >

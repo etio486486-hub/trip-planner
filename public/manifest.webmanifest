@@ -1,0 +1,19 @@
+{
+  "name": "Trip Planner — 여행 플래너",
+  "short_name": "여행 플래너",
+  "description": "일정, 지도, 맛집, 번역, 멤버 채팅까지 한곳에서",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f6f8fc",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

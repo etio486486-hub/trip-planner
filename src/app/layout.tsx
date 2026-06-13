@@ -16,10 +16,15 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "여행 플래너",
   description: "Google Maps와 실시간 공유가 가능한 일차별 여행 계획 앱",
+  manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "여행 플래너",
+  },
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg",
   },
   formatDetection: {
     telephone: false,
@@ -29,8 +34,10 @@ export const metadata: Metadata = {
 export const viewport = {
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
-  themeColor: "#ffffff",
+  themeColor: "#2563eb",
 };
 
 export default function RootLayout({

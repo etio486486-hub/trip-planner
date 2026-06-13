@@ -22,6 +22,7 @@
 html {
   height: 100%;
   -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;
 }
 
 body {
@@ -31,6 +32,7 @@ body {
   min-height: 100%;
   min-height: 100dvh;
   overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* ── 홈 인트로 & 랜딩 모션 ── */
@@ -218,6 +220,23 @@ body {
 /* ── 여행 워크스페이스 (홈과 동일 톤) ── */
 .trip-shell {
   background-color: #f6f8fc;
+  overscroll-behavior: none;
+}
+
+.mobile-panel-with-nav {
+  padding-bottom: calc(3.75rem + env(safe-area-inset-bottom, 0px));
+}
+
+.mobile-bottom-nav {
+  touch-action: manipulation;
+}
+
+.mobile-chat-fab {
+  bottom: calc(4.25rem + env(safe-area-inset-bottom, 0px));
+}
+
+.mobile-chat-sheet {
+  max-height: min(82dvh, 560px);
 }
 
 .trip-shell-bg {

@@ -26,6 +26,7 @@ import {
 } from "@/lib/supabase/client";
 import { generateInviteCode, normalizeInviteCode } from "@/lib/invite-code";
 import { buildTripPath, grantTripAccess } from "@/lib/trip-access";
+import { consumePreferHome } from "@/lib/trip-home-nav";
 import { usePro } from "@/hooks/usePro";
 import { ProBadge } from "@/components/pro/ProBadge";
 import { ProUpgradePanel } from "@/components/pro/ProUpgradePanel";
@@ -91,7 +92,7 @@ function HomeContent() {
       .then((trips) => {
         if (cancelled) return;
         setMyTrips(trips);
-        if (trips.length === 1) {
+        if (trips.length === 1 && !consumePreferHome()) {
           window.location.replace(buildTripPath(trips[0].id));
         }
       })

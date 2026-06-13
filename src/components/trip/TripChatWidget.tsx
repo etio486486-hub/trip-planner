@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { Loader2, MessageCircle, Send, X } from "lucide-react";
 import { useTripChat } from "@/hooks/useTripChat";
+import { useVisualViewport } from "@/hooks/useVisualViewport";
 
 type TripChatWidgetProps = {
   tripId: string;
@@ -157,6 +158,10 @@ export function TripChatWidget({
   const { messages, loading, sending, error, needsMigration, sendMessage } =
     useTripChat(tripId, currentUserId, senderName);
 
+  const { visibleHeight, offsetTop, keyboardOpen } = useVisualViewport(
+    isMobile && open
+  );
+
   useEffect(() => setMounted(true), []);
 
   useEffect(() => {
@@ -233,9 +238,7 @@ export function TripChatWidget({
 
     if (isMobile && mounted) {
       return createPortal(
-        <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] right-4 z-[45]">
-          {btn}
-        </div>,
+        <div className="mobile-chat-fab fixed right-4 z-[45]">{btn}</div>,
         document.body
       );
     }
@@ -271,21 +274,40 @@ export function TripChatWidget({
     </button>
   );
 
+  const mobileSheetStyle: CSSProperties =
+    keyboardOpen && visibleHeight != null
+      ? {
+          top: `${offsetTop}px`,
+          bottom: "auto",
+          maxHeight: `${visibleHeight}px`,
+        }
+      : {
+          bottom: "calc(3.75rem + env(safe-area-inset-bottom, 0px))",
+          maxHeight: "min(72dvh, 520px)",
+        };
+
   /* ── 모바일: viewport 고정 + 바텀시트 ── */
   if (isMobile && mounted) {
-    return createPortal(
-      <>
-        {open && (
-          <div
-            className="fixed inset-0 z-[48] bg-black/40 backdrop-blur-[2px]"
-            onClick={() => setOpenPersist(false)}
-            aria-hidden
-          />
-        )}
+      return createPortal(
+        <>
+          {open && (
+            <div
+              className="fixed inset-0 z-[48] bg-black/40 backdrop-blur-[2px]"
+              style={{
+                bottom:
+                  keyboardOpen && visibleHeight != null
+                    ? `${window.innerHeight - visibleHeight}px`
+                    : 0,
+              }}
+              onClick={() => setOpenPersist(false)}
+              aria-hidden
+            />
+          )}
 
         {open && (
           <div
-            className="fixed inset-x-0 bottom-0 z-[50] flex max-h-[min(82dvh,560px)] flex-col overflow-hidden rounded-t-2xl border border-zinc-200/80 bg-white shadow-2xl"
+            className="mobile-chat-sheet fixed inset-x-0 z-[50] flex flex-col overflow-hidden rounded-t-2xl border border-zinc-200/80 bg-white shadow-2xl"
+            style={mobileSheetStyle}
             role="dialog"
             aria-label="멤버 채팅"
           >
@@ -299,7 +321,7 @@ export function TripChatWidget({
                 <button
                   type="button"
                   onClick={() => setOpenPersist(false)}
-                  className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/20"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full hover:bg-white/20"
                   aria-label="채팅 닫기"
                 >
                   <X className="h-5 w-5" />
@@ -330,7 +352,7 @@ export function TripChatWidget({
         )}
 
         {!open && (
-          <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] right-3 z-[45] sm:right-4">
+          <div className="mobile-chat-fab fixed right-3 z-[45] sm:right-4">
             {fab}
           </div>
         )}

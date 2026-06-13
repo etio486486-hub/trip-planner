@@ -2,7 +2,11 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { AlertCircle } from "lucide-react";
-import { useResizablePanel } from "@/hooks/useResizablePanel";
+import {
+  inferMobileFocusFromPanelPercent,
+  PANEL_DEFAULTS,
+  useResizablePanel,
+} from "@/hooks/useResizablePanel";
 import {
   buildMapSegments,
   getSegmentModeKey,
@@ -20,6 +24,11 @@ import { TripChatWidget } from "./TripChatWidget";
 import { TripMap } from "./TripMap";
 import { MemberNameModal } from "./MemberNameModal";
 import { MobileMapPanelToggle } from "./MobileMapPanelToggle";
+import {
+  MobileBottomNav,
+  type MobilePanelFocus,
+} from "./MobileBottomNav";
+import { MobileInstallHint } from "./MobileInstallHint";
 import { MapFeatureButtons } from "./MapFeatureButtons";
 import { PanelResizeHandle } from "./PanelResizeHandle";
 import { RestaurantMapProvider } from "./RestaurantMapContext";
@@ -41,7 +50,7 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
     Record<string, boolean>
   >({});
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("itinerary");
-  const [mobileFocus, setMobileFocus] = useState<"map" | "panel">("panel");
+  const [mobileFocus, setMobileFocus] = useState<MobilePanelFocus>("panel");
 
   const {
     isMobile,
@@ -53,12 +62,18 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
   } = useResizablePanel();
 
   const handleMobileFocusChange = useCallback(
-    (focus: "map" | "panel") => {
+    (focus: MobilePanelFocus) => {
       setMobileFocus(focus);
-      if (focus === "map") resizeMobilePanel(18);
-      else resizeMobilePanel(82);
+      resizeMobilePanel(PANEL_DEFAULTS.mobileSnap[focus]);
     },
     [resizeMobilePanel]
+  );
+
+  const syncMobileFocusFromPanel = useCallback(
+    (panelPercent: number) => {
+      setMobileFocus(inferMobileFocusFromPanelPercent(panelPercent));
+    },
+    []
   );
 
   const {
@@ -295,16 +310,11 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
                 className="relative min-h-0 w-full overflow-hidden rounded-t-2xl ring-1 ring-white/70 shadow-lg"
                 style={{
                   flex: `0 0 ${mapHeightPercent}%`,
-                  minHeight: "18%",
-                  maxHeight: "82%",
+                  minHeight: "22%",
+                  maxHeight: "78%",
                 }}
               >
                 <TripMap {...mapProps} />
-                <MapFeatureButtons
-                  activeTab={sidebarTab}
-                  onTabChange={handleSidebarTabChange}
-                  layout="horizontal"
-                />
               </main>
               <div className="relative z-20 shrink-0">
                 <PanelResizeHandle
@@ -312,20 +322,35 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
                   onResize={(delta) => {
                     if (typeof window === "undefined") return;
                     const deltaPercent = (delta / window.innerHeight) * 100;
-                    resizeMobilePanel(mobilePanelPercent + deltaPercent);
-                    setMobileFocus("panel");
+                    const next = Math.min(
+                      PANEL_DEFAULTS.maxMobilePanelPercent,
+                      Math.max(
+                        PANEL_DEFAULTS.minMobilePanelPercent,
+                        mobilePanelPercent + deltaPercent
+                      )
+                    );
+                    resizeMobilePanel(next);
+                    syncMobileFocusFromPanel(next);
                   }}
                 />
-                <div className="pointer-events-none absolute inset-x-0 top-1/2 z-30 flex -translate-y-1/2 justify-center">
+                <div className="pointer-events-none absolute inset-x-0 top-1/2 z-30 flex -translate-y-1/2 justify-center px-3">
                   <MobileMapPanelToggle
                     focus={mobileFocus}
                     onFocusChange={handleMobileFocusChange}
                   />
                 </div>
               </div>
-              <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-t-2xl bg-white/90 shadow-[0_-8px_32px_-8px_rgba(15,23,42,0.12)] ring-1 ring-white/80 backdrop-blur-xl">
+              <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-t-2xl bg-white/90 shadow-[0_-8px_32px_-8px_rgba(15,23,42,0.12)] ring-1 ring-white/80 backdrop-blur-xl mobile-panel-with-nav">
                 <TripSidebar {...sidebarProps} isMobile />
               </div>
+              <MobileBottomNav
+                activeTab={sidebarTab}
+                panelFocus={mobileFocus}
+                onTabChange={handleSidebarTabChange}
+                onFocusMap={() => handleMobileFocusChange("map")}
+                onFocusPanel={() => handleMobileFocusChange("panel")}
+              />
+              <MobileInstallHint />
               {currentUserId && (
                 <TripChatWidget
                   tripId={tripId}
