@@ -144,6 +144,172 @@ export type NearbyRestaurant = {
   address: string | null;
 };
 
+export type RestaurantSearchResult = NearbyRestaurant & {
+  latitude: number;
+  longitude: number;
+};
+
+const RESTAURANT_SEARCH_FIELD_MASK =
+  "places.id,places.displayName,places.rating,places.userRatingCount,places.formattedAddress,places.location";
+
+function mapPlaceToRestaurant(
+  p: NearbyPlace & { location?: { latitude?: number; longitude?: number } }
+): RestaurantSearchResult | null {
+  if (p.location?.latitude == null || p.location?.longitude == null) return null;
+  const name = p.displayName?.text ?? "이름 없음";
+  const placeId = p.id ?? "";
+  if (!placeId) return null;
+  return {
+    placeId,
+    name,
+    nameReadingKo: toKoreanReading(name),
+    rating: p.rating ?? null,
+    reviewCount: p.userRatingCount ?? null,
+    address: p.formattedAddress ?? null,
+    latitude: p.location.latitude,
+    longitude: p.location.longitude,
+  };
+}
+
+function rankRestaurants(items: RestaurantSearchResult[]): RestaurantSearchResult[] {
+  return [...items].sort((a, b) => {
+    const ratingDiff = (b.rating ?? 0) - (a.rating ?? 0);
+    if (ratingDiff !== 0) return ratingDiff;
+    return (b.reviewCount ?? 0) - (a.reviewCount ?? 0);
+  });
+}
+
+/** 텍스트 + 지역 기준 맛집 검색 (Google Places Text Search) */
+export async function searchRestaurants(options: {
+  query: string;
+  latitude?: number;
+  longitude?: number;
+  radiusMeters?: number;
+  maxResults?: number;
+}): Promise<RestaurantSearchResult[]> {
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
+  if (!apiKey.startsWith("AIza")) return [];
+
+  const {
+    query,
+    latitude,
+    longitude,
+    radiusMeters = 5000,
+    maxResults = 15,
+  } = options;
+
+  const trimmed = query.trim();
+  const hasLocation =
+    latitude != null &&
+    longitude != null &&
+    Number.isFinite(latitude) &&
+    Number.isFinite(longitude);
+
+  if (!trimmed && hasLocation) {
+    return fetchRestaurantsInArea(latitude!, longitude!, radiusMeters, maxResults);
+  }
+
+  if (!trimmed) return [];
+
+  const body: Record<string, unknown> = {
+    textQuery: trimmed,
+    includedType: "restaurant",
+    languageCode: "ko",
+    maxResultCount: maxResults,
+  };
+
+  if (hasLocation) {
+    body.locationBias = {
+      circle: {
+        center: { latitude, longitude },
+        radius: radiusMeters,
+      },
+    };
+  }
+
+  const response = await fetch(
+    "https://places.googleapis.com/v1/places:searchText",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": apiKey,
+        "X-Goog-FieldMask": RESTAURANT_SEARCH_FIELD_MASK,
+      },
+      body: JSON.stringify(body),
+    }
+  );
+
+  if (!response.ok) return [];
+
+  const data = (await response.json()) as {
+    places?: (NearbyPlace & { location?: { latitude?: number; longitude?: number } })[];
+  };
+
+  return rankRestaurants(
+    (data.places ?? [])
+      .map(mapPlaceToRestaurant)
+      .filter((p): p is RestaurantSearchResult => p != null)
+  );
+}
+
+/** 좌표 주변 맛집 (검색어 없을 때 기본 목록) */
+export async function fetchRestaurantsInArea(
+  latitude: number,
+  longitude: number,
+  radiusMeters = 2000,
+  maxResults = 12
+): Promise<RestaurantSearchResult[]> {
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
+  if (!apiKey.startsWith("AIza")) return [];
+
+  const response = await fetch(
+    "https://places.googleapis.com/v1/places:searchNearby",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": apiKey,
+        "X-Goog-FieldMask": RESTAURANT_SEARCH_FIELD_MASK,
+      },
+      body: JSON.stringify({
+        includedTypes: ["restaurant"],
+        maxResultCount: maxResults,
+        rankPreference: "POPULARITY",
+        locationRestriction: {
+          circle: {
+            center: { latitude, longitude },
+            radius: radiusMeters,
+          },
+        },
+      }),
+    }
+  );
+
+  if (!response.ok) return [];
+
+  const data = (await response.json()) as {
+    places?: (NearbyPlace & { location?: { latitude?: number; longitude?: number } })[];
+  };
+
+  return rankRestaurants(
+    (data.places ?? [])
+      .map(mapPlaceToRestaurant)
+      .filter((p): p is RestaurantSearchResult => p != null)
+  );
+}
+
+export function getPlacesRegionCenter(
+  places: { latitude: number; longitude: number }[]
+): { latitude: number; longitude: number } | null {
+  if (places.length === 0) return null;
+  const lat =
+    places.reduce((sum, p) => sum + p.latitude, 0) / places.length;
+  const lng =
+    places.reduce((sum, p) => sum + p.longitude, 0) / places.length;
+  return { latitude: lat, longitude: lng };
+}
+
 export type RestaurantPlaceDetails = {
   placeId: string;
   name: string;

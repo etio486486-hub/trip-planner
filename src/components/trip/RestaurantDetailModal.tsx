@@ -20,6 +20,7 @@ import {
 type RestaurantDetailModalProps = {
   restaurant: NearbyRestaurant | null;
   onClose: () => void;
+  onAdd?: () => Promise<void>;
 };
 
 function DetailRow({
@@ -46,10 +47,12 @@ function DetailRow({
 export function RestaurantDetailModal({
   restaurant,
   onClose,
+  onAdd,
 }: RestaurantDetailModalProps) {
   const [details, setDetails] = useState<RestaurantPlaceDetails | null>(null);
   const [loading, setLoading] = useState(false);
   const [partialDetails, setPartialDetails] = useState(false);
+  const [adding, setAdding] = useState(false);
 
   useEffect(() => {
     if (!restaurant) {
@@ -184,6 +187,26 @@ export function RestaurantDetailModal({
             </div>
 
             <div className="flex flex-col gap-2 border-t border-zinc-100 pt-4">
+              {onAdd && (
+                <button
+                  type="button"
+                  disabled={adding}
+                  onClick={async () => {
+                    setAdding(true);
+                    try {
+                      await onAdd();
+                    } finally {
+                      setAdding(false);
+                    }
+                  }}
+                  className="flex items-center justify-center gap-2 rounded-lg bg-orange-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-orange-700 disabled:opacity-50"
+                >
+                  {adding ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : null}
+                  일정에 추가
+                </button>
+              )}
               {details.googleMapsUri && (
                 <a
                   href={details.googleMapsUri}
