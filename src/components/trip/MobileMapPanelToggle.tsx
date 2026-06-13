@@ -12,29 +12,29 @@ export function MobileMapPanelToggle({
   onFocusChange,
 }: MobileMapPanelToggleProps) {
   return (
-    <div className="pointer-events-auto flex gap-0.5 rounded-full bg-white p-0.5 shadow-md ring-1 ring-zinc-200">
+    <div className="pointer-events-auto flex gap-1 rounded-full border border-zinc-200/80 bg-white/95 p-1 shadow-lg shadow-black/10 backdrop-blur-sm">
       <button
         type="button"
         onClick={() => onFocusChange("map")}
-        className={`flex min-h-[44px] items-center gap-1 rounded-full px-3 py-2 text-xs font-medium ${
+        className={`flex min-h-[44px] min-w-[4.5rem] items-center justify-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold transition-colors ${
           focus === "map"
-            ? "bg-blue-600 text-white"
+            ? "bg-blue-600 text-white shadow-sm"
             : "text-zinc-600 hover:bg-zinc-100"
         }`}
       >
-        <Map className="h-3.5 w-3.5" />
+        <Map className="h-4 w-4" />
         지도
       </button>
       <button
         type="button"
         onClick={() => onFocusChange("panel")}
-        className={`flex min-h-[44px] items-center gap-1 rounded-full px-3 py-2 text-xs font-medium ${
+        className={`flex min-h-[44px] min-w-[4.5rem] items-center justify-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold transition-colors ${
           focus === "panel"
-            ? "bg-blue-600 text-white"
+            ? "bg-blue-600 text-white shadow-sm"
             : "text-zinc-600 hover:bg-zinc-100"
         }`}
       >
-        <List className="h-3.5 w-3.5" />
+        <List className="h-4 w-4" />
         일정
       </button>
     </div>

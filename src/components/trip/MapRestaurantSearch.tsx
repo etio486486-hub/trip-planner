@@ -49,6 +49,7 @@ export function MapRestaurantSearch({
     clearPreview,
     addRestaurant,
     isAlreadyAdded,
+    focusMapOnMobile,
   } = useRestaurantMap();
 
   const [query, setQuery] = useState("");
@@ -223,7 +224,10 @@ export function MapRestaurantSearch({
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              onFocus={() => setOpen(true)}
+              onFocus={() => {
+                setOpen(true);
+                focusMapOnMobile();
+              }}
               placeholder={
                 searchCenter
                   ? "맛집·음식 검색..."
@@ -307,7 +311,7 @@ export function MapRestaurantSearch({
                 </p>
               )}
 
-              <div className="max-h-[min(52vh,420px)] overflow-y-auto overscroll-contain">
+              <div className="max-h-[min(38dvh,320px)] overflow-y-auto overscroll-contain max-lg:max-h-[min(45dvh,360px)] sm:max-h-[min(52vh,420px)]">
                 {loading ? (
                   <div className="flex items-center justify-center gap-2 py-10 text-sm text-zinc-500">
                     <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
@@ -445,7 +449,7 @@ export function MapRestaurantSearch({
       </div>
 
       {previewRestaurant && !open && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-[max(1rem,calc(env(safe-area-inset-bottom)+0.75rem))] z-20 flex justify-center px-3 max-lg:bottom-[max(4.5rem,calc(env(safe-area-inset-bottom)+3.5rem))] sm:bottom-5">
+        <div className="pointer-events-none absolute inset-x-0 bottom-[max(1rem,calc(env(safe-area-inset-bottom)+0.75rem))] z-20 flex justify-center px-3 sm:bottom-5">
           <div className="pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-2xl border border-zinc-200/90 bg-white p-3 shadow-xl shadow-black/15 ring-1 ring-black/5">
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-zinc-900">

@@ -127,7 +127,7 @@ function ItineraryContent({
             <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
           </div>
         ) : (
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-4 max-lg:pb-20">
             <PlaceList
               places={places}
               selectedPlaceId={selectedPlaceId}

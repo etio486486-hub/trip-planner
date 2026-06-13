@@ -264,7 +264,7 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
           {isMobile ? (
             <>
               <main
-                className="relative min-h-0 w-full"
+                className="relative min-h-0 w-full overflow-hidden"
                 style={{
                   flex: `0 0 ${mapHeightPercent}%`,
                   minHeight: "18%",
@@ -272,14 +272,6 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
                 }}
               >
                 <TripMap {...mapProps} />
-                {currentUserId && (
-                  <TripChatWidget
-                    tripId={tripId}
-                    currentUserId={currentUserId}
-                    senderName={chatSenderName}
-                    isMobile
-                  />
-                )}
               </main>
               <div className="relative z-20 shrink-0">
                 <PanelResizeHandle
@@ -291,7 +283,7 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
                     setMobileFocus("panel");
                   }}
                 />
-                <div className="pointer-events-none absolute inset-x-0 top-1/2 flex -translate-y-1/2 justify-center">
+                <div className="pointer-events-none absolute inset-x-0 top-1/2 z-30 flex -translate-y-1/2 justify-center">
                   <MobileMapPanelToggle
                     focus={mobileFocus}
                     onFocusChange={handleMobileFocusChange}
@@ -301,6 +293,14 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
               <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
                 <TripSidebar {...sidebarProps} isMobile />
               </div>
+              {currentUserId && (
+                <TripChatWidget
+                  tripId={tripId}
+                  currentUserId={currentUserId}
+                  senderName={chatSenderName}
+                  isMobile
+                />
+              )}
             </>
           ) : (
             <>
