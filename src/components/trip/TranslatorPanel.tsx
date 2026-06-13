@@ -25,6 +25,7 @@ import {
   type TranslateLang,
 } from "@/lib/translate-client";
 import { getLocalKoreanReading } from "@/lib/foreign-reading";
+import { COMMON_PHRASES } from "@/lib/common-phrases";
 
 type SpeechRecognitionCtor = new () => SpeechRecognition;
 
@@ -385,19 +386,12 @@ export function TranslatorPanel({ isMobile = false }: { isMobile?: boolean }) {
             {device?.isIOS ? "👆 탭하면 바로 번역·읽기" : "자주 쓰는 멘트"}
           </p>
           <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {[
-              { ko: "이거 주세요", ja: "これください" },
-              { ko: "계산서 부탁합니다", ja: "お会計お願いします" },
-              { ko: "화장실이 어디예요?", ja: "トイレはどこですか" },
-              { ko: "물 한 잔 주세요", ja: "お水ください" },
-              { ko: "맵게 해 주세요", ja: "辛くしないでください" },
-              { ko: "사진 찍어도 되나요?", ja: "写真撮ってもいいですか" },
-            ].map(({ ko, ja }) => {
+            {COMMON_PHRASES.map(({ ko, ja, jaReading }) => {
               const phrase = targetLang === "ja" ? ja : ko;
               const src = targetLang === "ja" ? ko : ja;
               const phraseReading =
                 targetLang === "ja"
-                  ? getLocalKoreanReading(phrase, "ja")
+                  ? jaReading
                   : targetLang === "en"
                     ? getLocalKoreanReading(phrase, "en")
                     : null;

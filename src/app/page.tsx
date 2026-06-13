@@ -156,7 +156,7 @@ function HomeContent() {
 
   if (authLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="flex min-h-screen items-center justify-center bg-[#f4f6fb]">
         <div className="flex items-center gap-2 text-sm text-zinc-600">
           <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
           불러오는 중...
@@ -167,14 +167,18 @@ function HomeContent() {
 
   return (
     <HomeLayout>
-      <div className="rounded-2xl border border-white/60 bg-white/90 p-6 shadow-xl backdrop-blur-sm">
+      <div className="overflow-hidden rounded-2xl border border-white/80 bg-white/95 p-6 shadow-xl shadow-slate-900/[0.06] ring-1 ring-slate-900/[0.04] backdrop-blur-sm">
         <div className="mb-8 text-center">
-          <div className="mb-4 inline-flex items-center justify-center rounded-2xl bg-blue-600 p-3 shadow-lg shadow-blue-600/25">
+          <div className="mb-4 inline-flex items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 p-3 shadow-lg shadow-blue-600/25">
             <Map className="h-8 w-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-zinc-900">여행 플래너</h1>
-          <p className="mt-2 text-sm text-zinc-600">
-            Google 로그인으로 간편하게 여행을 만들고 참여하세요
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-900">
+            여행 플래너
+          </h1>
+          <p className="mt-2 text-sm leading-relaxed text-zinc-500">
+            일정 · 지도 · 맛집 · 번역
+            <br />
+            <span className="text-zinc-600">함께 만드는 스마트 여행</span>
           </p>
         </div>
 
@@ -319,7 +323,7 @@ export default function Home() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="flex min-h-screen items-center justify-center bg-[#f4f6fb]">
           <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
         </div>
       }

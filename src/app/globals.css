@@ -27,10 +27,146 @@ html {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
   min-height: 100%;
   min-height: 100dvh;
   overscroll-behavior: none;
+}
+
+/* ── 홈 스플래시 & 진입 모션 ── */
+@keyframes splash-orb-drift {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(12px, -16px) scale(1.05);
+  }
+}
+
+@keyframes splash-line-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes splash-logo-in {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes splash-progress {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+@keyframes home-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes home-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.splash-orb-a {
+  animation: splash-orb-drift 8s ease-in-out infinite;
+}
+
+.splash-orb-b {
+  animation: splash-orb-drift 10s ease-in-out infinite reverse;
+}
+
+.splash-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+.splash-logo {
+  animation: splash-logo-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.splash-line-1 {
+  animation: splash-line-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both;
+}
+
+.splash-line-2 {
+  animation: splash-line-in 0.65s cubic-bezier(0.22, 1, 0.36, 1) 0.3s both;
+}
+
+.splash-line-3 {
+  animation: splash-line-in 0.65s cubic-bezier(0.22, 1, 0.36, 1) 0.45s both;
+}
+
+.splash-line-4 {
+  animation: splash-line-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.6s both;
+}
+
+.splash-progress-bar {
+  animation: splash-progress 2.4s cubic-bezier(0.4, 0, 0.2, 1) 0.2s both;
+}
+
+.home-enter {
+  animation: home-fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.home-enter-delay-1 {
+  animation: home-fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both;
+}
+
+.home-enter-delay-2 {
+  animation: home-fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
+}
+
+.home-card-enter {
+  animation: home-scale-in 0.75s cubic-bezier(0.22, 1, 0.36, 1) 0.05s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splash-orb-a,
+  .splash-orb-b,
+  .splash-logo,
+  .splash-line-1,
+  .splash-line-2,
+  .splash-line-3,
+  .splash-line-4,
+  .splash-progress-bar,
+  .home-enter,
+  .home-enter-delay-1,
+  .home-enter-delay-2,
+  .home-card-enter {
+    animation: none !important;
+  }
 }
 
 /* 입력 필드 글자색 — 다크모드/상속으로 흐려지는 문제 방지 */
