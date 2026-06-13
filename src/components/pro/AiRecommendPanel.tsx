@@ -26,6 +26,9 @@ type AiRecommendPanelProps = {
     }
   ) => Promise<{ added: number; skipped: string[] }>;
   compact?: boolean;
+  /** 지도 도크 등 — 트리거 버튼 없이 바로 폼 표시 */
+  embedded?: boolean;
+  onDismiss?: () => void;
 };
 
 export function AiRecommendPanel({
@@ -36,12 +39,14 @@ export function AiRecommendPanel({
   defaultLng,
   onAddAiCourse,
   compact = false,
+  embedded = false,
+  onDismiss,
 }: AiRecommendPanelProps) {
   const { isPro, getSnapshot, refresh } = useFreemiumUsage();
   const aiUsage = getSnapshot("ai_recommend");
   const canRecommend = isPro || aiUsage.canUse;
 
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(embedded);
   const [preferences, setPreferences] = useState("맛집·카페·관광");
   const [loading, setLoading] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -118,7 +123,11 @@ export function AiRecommendPanel({
       }
 
       if (summary.added > 0) {
-        setOpen(false);
+        if (embedded) {
+          onDismiss?.();
+        } else {
+          setOpen(false);
+        }
         setResult(null);
       } else {
         setError(
@@ -135,9 +144,20 @@ export function AiRecommendPanel({
 
   const freemiumHint = FREEMIUM_LIMITS.ai_recommend.freeHint;
 
+  const closePanel = () => {
+    if (embedded) {
+      onDismiss?.();
+      return;
+    }
+    setOpen(false);
+    setResult(null);
+    setError(null);
+    setSkipNotice(null);
+  };
+
   return (
-    <div className={compact ? "px-3 py-2" : "border-b border-zinc-100 px-4 py-3"}>
-      {!open ? (
+    <div className={compact || embedded ? "px-3 py-2" : "border-b border-zinc-100 px-4 py-3"}>
+      {!open && !embedded ? (
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -148,25 +168,35 @@ export function AiRecommendPanel({
           {!isPro && <ProBadge />}
         </button>
       ) : (
-        <div className="rounded-xl border border-violet-200 bg-violet-50/50 p-3">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="flex items-center gap-1.5 text-xs font-bold text-violet-900">
+        <div
+          className={
+            embedded
+              ? "p-3"
+              : "rounded-xl border border-violet-200 bg-violet-50/50 p-3"
+          }
+        >
+          {!embedded && (
+            <div className="mb-2 flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-xs font-bold text-violet-900">
+                <Sparkles className="h-3.5 w-3.5" />
+                AI 추천 · {destination}
+              </span>
+              <button
+                type="button"
+                onClick={closePanel}
+                className="rounded p-1 text-violet-400 hover:bg-violet-100"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+          {embedded && (
+            <p className="mb-2 flex items-center gap-1.5 text-xs font-bold text-violet-900">
               <Sparkles className="h-3.5 w-3.5" />
-              AI 추천 · {destination}
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                setOpen(false);
-                setResult(null);
-                setError(null);
-                setSkipNotice(null);
-              }}
-              className="rounded p-1 text-violet-400 hover:bg-violet-100"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
+              {destination} · {isPro ? `${dayCount}일` : "1일 맛보기"}
+              {!isPro && <ProBadge />}
+            </p>
+          )}
 
           {!isPro && (
             <p className="mb-2 text-[10px] text-violet-700">

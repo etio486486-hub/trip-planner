@@ -30,11 +30,18 @@ import {
 } from "./MobileBottomNav";
 import { MobileInstallHint } from "./MobileInstallHint";
 import { MapFeatureButtons } from "./MapFeatureButtons";
+import { MapToolsDock } from "./MapToolsDock";
 import { PanelResizeHandle } from "./PanelResizeHandle";
 import { RestaurantMapProvider } from "./RestaurantMapContext";
 import { TripSidebar } from "./TripSidebar";
 import type { SidebarTab } from "./TripMenuTabs";
 import { getDestinationTheme } from "@/lib/trip-destination-theme";
+import {
+  addAiCourseToTrip,
+  computeMapCenter,
+  getDayDate,
+  getDestinationLabel,
+} from "@/lib/trip-ai-course";
 
 type TripPlannerClientProps = {
   tripId: string;
@@ -125,6 +132,43 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
     () => getDestinationTheme(trip?.title),
     [trip?.title]
   );
+
+  const mapCenter = useMemo(() => computeMapCenter(places), [places]);
+
+  const destinationLabel = useMemo(
+    () => getDestinationLabel(trip),
+    [trip]
+  );
+
+  const selectedDayDate = useMemo(
+    () =>
+      trip?.start_date
+        ? getDayDate(trip.start_date, selectedDayNumber)
+        : null,
+    [trip?.start_date, selectedDayNumber]
+  );
+
+  const handleAddAiCourse = useCallback(
+    (
+      days: Parameters<typeof addAiCourseToTrip>[0],
+      ctx: Parameters<typeof addAiCourseToTrip>[1]
+    ) => addAiCourseToTrip(days, ctx, ensureDaysUpTo, addPlaceToDay),
+    [ensureDaysUpTo, addPlaceToDay]
+  );
+
+  const mapToolsProps = {
+    destination: destinationLabel,
+    dayCount: Math.max(1, dailyPlans.length),
+    selectedDayNumber,
+    dayDate: selectedDayDate,
+    places,
+    trip,
+    tripId,
+    currentUserId: currentUserId ?? "",
+    dailyPlans,
+    mapCenter,
+    onAddAiCourse: handleAddAiCourse,
+  };
 
   const handleSegmentModeChange = (
     fromId: string,
@@ -238,8 +282,6 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
     onRemoveDay: handleRemoveDay,
     onUpdateTrip: updateTrip,
     onAddPlace: addPlace,
-    onAddPlaceToDay: addPlaceToDay,
-    onEnsureDaysUpTo: ensureDaysUpTo,
     onDeletePlace: handleDeletePlace,
     onUpdatePlace: updatePlace,
     onReorderPlaces: handleReorderPlaces,
@@ -315,6 +357,7 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
                 }}
               >
                 <TripMap {...mapProps} />
+                <MapToolsDock {...mapToolsProps} isMobile />
               </main>
               <div className="relative z-20 shrink-0">
                 <PanelResizeHandle
@@ -374,6 +417,7 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
               />
               <main className="relative min-w-0 flex-1 overflow-hidden rounded-2xl trip-map-frame ring-1 ring-white/80">
                 <TripMap {...mapProps} />
+                <MapToolsDock {...mapToolsProps} />
                 <MapFeatureButtons
                   activeTab={sidebarTab}
                   onTabChange={handleSidebarTabChange}
