@@ -26,6 +26,12 @@ import {
 } from "@/lib/translate-client";
 import { getLocalKoreanReading } from "@/lib/foreign-reading";
 import { COMMON_PHRASES } from "@/lib/common-phrases";
+import { usePro } from "@/hooks/usePro";
+import { ConversationTranslator } from "@/components/pro/ConversationTranslator";
+import { ProBadge } from "@/components/pro/ProBadge";
+import { ProUpgradePanel } from "@/components/pro/ProUpgradePanel";
+
+type TranslatorMode = "basic" | "conversation";
 
 type SpeechRecognitionCtor = new () => SpeechRecognition;
 
@@ -39,6 +45,9 @@ function getSpeechRecognition(): SpeechRecognitionCtor | null {
 }
 
 export function TranslatorPanel({ isMobile = false }: { isMobile?: boolean }) {
+  const { hasFeature } = usePro();
+  const [mode, setMode] = useState<TranslatorMode>("basic");
+  const canConversation = hasFeature("conversation_mode");
   const [sourceLang, setSourceLang] = useState<TranslateLang>("ko");
   const [targetLang, setTargetLang] = useState<TranslateLang>("ja");
   const [inputText, setInputText] = useState("");
@@ -210,10 +219,30 @@ export function TranslatorPanel({ isMobile = false }: { isMobile?: boolean }) {
 
   const showVoiceButton = device?.recognition;
 
+  if (mode === "conversation") {
+    if (canConversation) {
+      return (
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="shrink-0 border-b border-violet-100 bg-gradient-to-r from-violet-50 to-white px-4 py-3">
+            <ModeTabs mode={mode} onModeChange={setMode} />
+          </div>
+          <ConversationTranslator isMobile={isMobile} />
+        </div>
+      );
+    }
+    return (
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-3">
+        <ModeTabs mode={mode} onModeChange={setMode} />
+        <ProUpgradePanel featureId="conversation_mode" className="mt-3" />
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="shrink-0 border-b border-violet-100 bg-gradient-to-r from-violet-50 to-white px-4 py-3">
-        <div className="flex items-center gap-2">
+        <ModeTabs mode={mode} onModeChange={setMode} />
+        <div className="mt-2 flex items-center gap-2">
           <Languages className="h-4 w-4 text-violet-600" />
           <span className="text-sm font-semibold text-zinc-800">
             실시간 번역기
@@ -428,8 +457,44 @@ export function TranslatorPanel({ isMobile = false }: { isMobile?: boolean }) {
       >
         {device?.recognition
           ? "마이크 권한 허용 · Android Chrome 권장"
-          : "텍스트 번역 + 음성 듣기 · Pro에서 iPhone 음성입력 예정"}
+          : "텍스트 번역 + 음성 듣기 · Pro 대화형 모드 이용 가능"}
       </div>
+    </div>
+  );
+}
+
+function ModeTabs({
+  mode,
+  onModeChange,
+}: {
+  mode: TranslatorMode;
+  onModeChange: (m: TranslatorMode) => void;
+}) {
+  return (
+    <div className="flex gap-1 rounded-lg bg-zinc-100 p-0.5">
+      <button
+        type="button"
+        onClick={() => onModeChange("basic")}
+        className={`flex-1 rounded-md py-2 text-xs font-semibold transition-colors ${
+          mode === "basic"
+            ? "bg-white text-zinc-900 shadow-sm"
+            : "text-zinc-500 hover:text-zinc-700"
+        }`}
+      >
+        기본 번역
+      </button>
+      <button
+        type="button"
+        onClick={() => onModeChange("conversation")}
+        className={`flex flex-1 items-center justify-center gap-1 rounded-md py-2 text-xs font-semibold transition-colors ${
+          mode === "conversation"
+            ? "bg-white text-violet-700 shadow-sm"
+            : "text-zinc-500 hover:text-zinc-700"
+        }`}
+      >
+        대화형
+        <ProBadge />
+      </button>
     </div>
   );
 }

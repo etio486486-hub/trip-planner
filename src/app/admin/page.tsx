@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Loader2, Shield, Trash2 } from "lucide-react";
+import { Loader2, Shield, Trash2, Crown } from "lucide-react";
 import {
   isAdminConfigured,
   isAdminSession,
@@ -20,6 +20,10 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [adminPassword, setAdminPassword] = useState("");
+  const [proUserId, setProUserId] = useState("");
+  const [proMonths, setProMonths] = useState(1);
+  const [proLoading, setProLoading] = useState(false);
 
   useEffect(() => {
     setAuthed(isAdminSession());
@@ -55,6 +59,7 @@ export default function AdminPage() {
     }
     if (loginAdmin(password)) {
       setAuthed(true);
+      setAdminPassword(password);
       setLoginError(null);
       setPassword("");
     } else {
@@ -87,6 +92,49 @@ export default function AdminPage() {
     }
 
     setDeletingId(null);
+  };
+
+  const handleProAction = async (action: "grant" | "revoke") => {
+    if (!proUserId.trim()) {
+      setMessage("Supabase user UUID를 입력해 주세요.");
+      return;
+    }
+
+    setProLoading(true);
+    setMessage(null);
+
+    try {
+      const res = await fetch("/api/admin/pro", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          password: adminPassword,
+          userId: proUserId.trim(),
+          action,
+          months: proMonths,
+        }),
+      });
+
+      const data = (await res.json()) as {
+        ok?: boolean;
+        error?: string;
+        profile?: { is_pro: boolean; pro_until: string | null };
+      };
+
+      if (!res.ok) {
+        setMessage(data.error ?? "Pro 설정 실패");
+      } else if (action === "grant") {
+        setMessage(
+          `Pro 부여 완료 · ${data.profile?.pro_until?.slice(0, 10) ?? ""}까지`
+        );
+      } else {
+        setMessage("Pro 해제 완료");
+      }
+    } catch {
+      setMessage("네트워크 오류");
+    }
+
+    setProLoading(false);
   };
 
   if (!authed) {
@@ -148,6 +196,7 @@ export default function AdminPage() {
             onClick={() => {
               logoutAdmin();
               setAuthed(false);
+              setAdminPassword("");
             }}
             className="text-sm text-zinc-500 hover:underline"
           >
@@ -160,6 +209,68 @@ export default function AdminPage() {
             {message}
           </div>
         )}
+
+        <section className="mb-8 rounded-2xl border border-amber-200 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center gap-2">
+            <Crown className="h-5 w-5 text-amber-600" />
+            <h2 className="text-base font-bold text-zinc-900">Pro 부여</h2>
+          </div>
+          <p className="mb-4 text-sm text-zinc-600">
+            Supabase Auth 사용자 UUID로 Pro를 활성화합니다.{" "}
+            <code className="rounded bg-zinc-100 px-1 text-xs">user_profiles</code>{" "}
+            마이그레이션과{" "}
+            <code className="rounded bg-zinc-100 px-1 text-xs">
+              SUPABASE_SERVICE_ROLE_KEY
+            </code>{" "}
+            환경 변수가 필요합니다.
+          </p>
+          <div className="space-y-3">
+            <input
+              type="text"
+              value={proUserId}
+              onChange={(e) => setProUserId(e.target.value)}
+              placeholder="사용자 UUID (auth.users.id)"
+              className="w-full rounded-lg border border-zinc-300 px-3 py-2.5 font-mono text-sm"
+            />
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="flex items-center gap-2 text-sm text-zinc-700">
+                기간
+                <select
+                  value={proMonths}
+                  onChange={(e) => setProMonths(Number(e.target.value))}
+                  className="rounded-lg border border-zinc-300 px-2 py-1.5 text-sm"
+                >
+                  <option value={1}>1개월</option>
+                  <option value={3}>3개월</option>
+                  <option value={6}>6개월</option>
+                  <option value={12}>12개월</option>
+                </select>
+              </label>
+              <button
+                type="button"
+                disabled={proLoading}
+                onClick={() => void handleProAction("grant")}
+                className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-50"
+              >
+                {proLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Pro 부여"
+                )}
+              </button>
+              <button
+                type="button"
+                disabled={proLoading}
+                onClick={() => void handleProAction("revoke")}
+                className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+              >
+                Pro 해제
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <h2 className="mb-3 text-base font-bold text-zinc-900">여행 목록</h2>
 
         {loading ? (
           <div className="flex justify-center py-12">

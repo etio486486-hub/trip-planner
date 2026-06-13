@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { HomeIntro, shouldShowHomeIntro } from "./HomeIntro";
 import { HomeBenefitsSection } from "./HomeBenefitsSection";
+import { HomeProSection } from "@/components/pro/HomeProSection";
 import { PopularPlacesPanel } from "./PopularPlacesPanel";
 import { TrendingPlacesPanel } from "./TrendingPlacesPanel";
 
@@ -199,6 +200,10 @@ export function HomeLayout({ children }: HomeLayoutProps) {
         {/* Why use us — benefits & promo */}
         <HomeBenefitsSection
           className={`py-16 sm:py-20 ${revealed ? "home-enter-delay-2" : "opacity-0"}`}
+        />
+
+        <HomeProSection
+          className={`pb-16 sm:pb-20 ${revealed ? "home-enter-delay-2" : "opacity-0"}`}
         />
 
         {/* Discover */}

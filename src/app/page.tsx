@@ -26,6 +26,9 @@ import {
 } from "@/lib/supabase/client";
 import { generateInviteCode, normalizeInviteCode } from "@/lib/invite-code";
 import { buildTripPath, grantTripAccess } from "@/lib/trip-access";
+import { usePro } from "@/hooks/usePro";
+import { ProBadge } from "@/components/pro/ProBadge";
+import { formatProUntil } from "@/lib/pro";
 
 function formatSupabaseError(message: string): string {
   if (message.includes("Could not find the table")) {
@@ -53,6 +56,7 @@ function HomeContent() {
 
   const supabaseReady = isSupabaseConfigured();
   const authError = searchParams.get("auth_error");
+  const { isPro, profile: proProfile, preview: proPreview } = usePro();
 
   useEffect(() => {
     if (authError) {
@@ -210,10 +214,20 @@ function HomeContent() {
           <>
             <div className="mb-5 flex items-center justify-between gap-3 rounded-xl bg-zinc-50 px-4 py-3">
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-zinc-900">
+                <p className="flex items-center gap-2 truncate text-sm font-semibold text-zinc-900">
                   {getAuthDisplayName(user)}
+                  {isPro && <ProBadge size="sm" />}
                 </p>
                 <p className="truncate text-xs text-zinc-500">{user.email}</p>
+                {isPro && (
+                  <p className="mt-0.5 text-[11px] font-medium text-green-700">
+                    Pro 활성
+                    {formatProUntil(proProfile?.pro_until ?? null)
+                      ? ` · ${formatProUntil(proProfile?.pro_until ?? null)}까지`
+                      : ""}
+                    {proPreview ? " (미리보기)" : ""}
+                  </p>
+                )}
               </div>
               <button
                 type="button"
