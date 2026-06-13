@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AdvancedMarker, Map, useMap } from "@vis.gl/react-google-maps";
 import type { MapRouteSegment } from "@/hooks/useTripRouteLegs";
 import { groupPlacesForMarkers } from "@/lib/map-markers";
+import type { RestaurantSearchResult } from "@/lib/maps/places-api";
 import { isMapsConfigured } from "./MapsProvider";
 import { MapsSetupGuide } from "./MapsSetupGuide";
 import { MapRestaurantSearch } from "./MapRestaurantSearch";
@@ -111,17 +112,53 @@ function PlaceMarkers({
   );
 }
 
+function SearchPreviewMarker({
+  preview,
+}: {
+  preview: RestaurantSearchResult | null;
+}) {
+  if (!preview) return null;
+
+  return (
+    <AdvancedMarker
+      position={{ lat: preview.latitude, lng: preview.longitude }}
+      title={preview.name}
+      zIndex={2000}
+    >
+      <div className="flex flex-col items-center">
+        <div className="max-w-[10rem] truncate rounded-full bg-orange-600 px-2.5 py-1 text-xs font-bold text-white shadow-lg ring-2 ring-white">
+          {preview.name}
+        </div>
+        <div className="h-0 w-0 border-x-8 border-t-[10px] border-x-transparent border-t-orange-600" />
+      </div>
+    </AdvancedMarker>
+  );
+}
+
 function MapCameraController({
   places,
   focusedPlaceId,
+  previewRestaurant,
 }: {
   places: Place[];
   focusedPlaceId: string | null;
+  previewRestaurant: RestaurantSearchResult | null;
 }) {
   const map = useMap();
 
   useEffect(() => {
-    if (!map || places.length === 0) return;
+    if (!map) return;
+
+    if (previewRestaurant) {
+      map.panTo({
+        lat: previewRestaurant.latitude,
+        lng: previewRestaurant.longitude,
+      });
+      map.setZoom(16);
+      return;
+    }
+
+    if (places.length === 0) return;
 
     if (focusedPlaceId) {
       const place = places.find((p) => p.id === focusedPlaceId);
@@ -142,7 +179,7 @@ function MapCameraController({
       bounds.extend({ lat: p.latitude, lng: p.longitude })
     );
     map.fitBounds(bounds, { top: 80, right: 60, bottom: 60, left: 60 });
-  }, [map, places, focusedPlaceId]);
+  }, [map, places, focusedPlaceId, previewRestaurant]);
 
   return null;
 }
@@ -153,7 +190,8 @@ function MapContent({
   routeSegments,
   routesLoading,
   onPlaceClick,
-}: TripMapProps) {
+  previewRestaurant,
+}: TripMapProps & { previewRestaurant: RestaurantSearchResult | null }) {
   const center = useMemo(() => {
     if (places.length === 0) {
       return { lat: 37.5665, lng: 126.978 };
@@ -176,13 +214,18 @@ function MapContent({
       disableDefaultUI={false}
       className="h-full w-full"
     >
-      <MapCameraController places={places} focusedPlaceId={focusedPlaceId} />
+      <MapCameraController
+        places={places}
+        focusedPlaceId={focusedPlaceId}
+        previewRestaurant={previewRestaurant}
+      />
       <SegmentPolylines segments={routeSegments} />
       <PlaceMarkers
         places={places}
         focusedPlaceId={focusedPlaceId}
         onPlaceClick={onPlaceClick}
       />
+      <SearchPreviewMarker preview={previewRestaurant} />
 
       {routesLoading && (
         <div className="absolute left-3 top-3 z-10">
@@ -203,6 +246,9 @@ export function TripMap({
   onPlaceClick,
   onAddPlace,
 }: TripMapProps) {
+  const [previewRestaurant, setPreviewRestaurant] =
+    useState<RestaurantSearchResult | null>(null);
+
   if (!isMapsConfigured()) {
     return (
       <div className="flex h-full items-center justify-center bg-zinc-100 p-8">
@@ -221,9 +267,15 @@ export function TripMap({
         routeSegments={routeSegments}
         routesLoading={routesLoading}
         onPlaceClick={onPlaceClick}
+        previewRestaurant={previewRestaurant}
       />
       {onAddPlace && (
-        <MapRestaurantSearch places={places} onAdd={onAddPlace} />
+        <MapRestaurantSearch
+          places={places}
+          onAdd={onAddPlace}
+          previewRestaurant={previewRestaurant}
+          onPreviewRestaurant={setPreviewRestaurant}
+        />
       )}
     </div>
   );

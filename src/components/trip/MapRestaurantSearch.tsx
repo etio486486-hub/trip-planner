@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Info,
   Loader2,
   MapPin,
   Plus,
@@ -30,11 +31,15 @@ const QUICK_TAGS = [
 type MapRestaurantSearchProps = {
   places: Place[];
   onAdd: (place: PlaceInput) => Promise<void>;
+  previewRestaurant: RestaurantSearchResult | null;
+  onPreviewRestaurant: (item: RestaurantSearchResult | null) => void;
 };
 
 export function MapRestaurantSearch({
   places,
   onAdd,
+  previewRestaurant,
+  onPreviewRestaurant,
 }: MapRestaurantSearchProps) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -179,6 +184,7 @@ export function MapRestaurantSearch({
                 onClick={() => {
                   setQuery("");
                   setOpen(false);
+                  onPreviewRestaurant(null);
                   inputRef.current?.blur();
                 }}
                 className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
@@ -227,17 +233,31 @@ export function MapRestaurantSearch({
                   </p>
                 ) : (
                   <ul className="divide-y divide-zinc-100">
-                    {results.map((item, index) => (
+                    {results.map((item, index) => {
+                      const isSelected =
+                        previewRestaurant?.placeId === item.placeId;
+
+                      return (
                       <li
                         key={item.placeId}
-                        className="flex items-start gap-2.5 px-3 py-2.5 hover:bg-zinc-50"
+                        className={`flex items-start gap-2.5 px-3 py-2.5 transition-colors ${
+                          isSelected
+                            ? "bg-orange-50 ring-1 ring-inset ring-orange-200"
+                            : "hover:bg-zinc-50"
+                        }`}
                       >
-                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-orange-100 text-[10px] font-bold text-orange-700">
+                        <span
+                          className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                            isSelected
+                              ? "bg-orange-600 text-white"
+                              : "bg-orange-100 text-orange-700"
+                          }`}
+                        >
                           {index + 1}
                         </span>
                         <button
                           type="button"
-                          onClick={() => setDetailTarget(item)}
+                          onClick={() => onPreviewRestaurant(item)}
                           className="min-w-0 flex-1 text-left"
                         >
                           <div className="flex items-start justify-between gap-2">
@@ -261,23 +281,40 @@ export function MapRestaurantSearch({
                               {item.address}
                             </p>
                           )}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void handleAdd(item)}
-                          disabled={addingId === item.placeId}
-                          className="flex shrink-0 items-center gap-0.5 rounded-lg bg-blue-600 px-2.5 py-1.5 text-[11px] font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-                          title="일정에 추가"
-                        >
-                          {addingId === item.placeId ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <Plus className="h-3 w-3" />
+                          {isSelected && (
+                            <p className="mt-1 flex items-center gap-1 text-[10px] font-medium text-orange-600">
+                              <MapPin className="h-3 w-3" />
+                              지도에서 위치 확인 중
+                            </p>
                           )}
-                          추가
                         </button>
+                        <div className="flex shrink-0 flex-col gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setDetailTarget(item)}
+                            className="flex items-center justify-center rounded-lg border border-zinc-200 p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700"
+                            title="상세 정보"
+                          >
+                            <Info className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void handleAdd(item)}
+                            disabled={addingId === item.placeId}
+                            className="flex items-center gap-0.5 rounded-lg bg-blue-600 px-2.5 py-1.5 text-[11px] font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                            title="일정에 추가"
+                          >
+                            {addingId === item.placeId ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Plus className="h-3 w-3" />
+                            )}
+                            추가
+                          </button>
+                        </div>
                       </li>
-                    ))}
+                      );
+                    })}
                   </ul>
                 )}
               </div>
@@ -285,6 +322,48 @@ export function MapRestaurantSearch({
           )}
         </div>
       </div>
+
+      {previewRestaurant && !open && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-4 z-20 flex justify-center px-3 sm:bottom-5">
+          <div className="pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-2xl border border-zinc-200/90 bg-white p-3 shadow-xl shadow-black/15 ring-1 ring-black/5">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-zinc-900">
+                {previewRestaurant.name}
+              </p>
+              {previewRestaurant.address && (
+                <p className="mt-0.5 line-clamp-2 text-[11px] text-zinc-500">
+                  {previewRestaurant.address}
+                </p>
+              )}
+            </div>
+            <div className="flex shrink-0 gap-1">
+              <button
+                type="button"
+                onClick={() => setDetailTarget(previewRestaurant)}
+                className="rounded-lg border border-zinc-200 px-2.5 py-1.5 text-[11px] font-medium text-zinc-600 hover:bg-zinc-50"
+              >
+                상세
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleAdd(previewRestaurant)}
+                disabled={addingId === previewRestaurant.placeId}
+                className="rounded-lg bg-blue-600 px-2.5 py-1.5 text-[11px] font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                추가
+              </button>
+              <button
+                type="button"
+                onClick={() => onPreviewRestaurant(null)}
+                className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100"
+                aria-label="미리보기 닫기"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <RestaurantDetailModal
         restaurant={detailTarget}
@@ -294,6 +373,7 @@ export function MapRestaurantSearch({
             ? async () => {
                 await handleAdd(detailTarget);
                 setDetailTarget(null);
+                onPreviewRestaurant(null);
                 setOpen(false);
               }
             : undefined
