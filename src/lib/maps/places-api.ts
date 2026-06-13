@@ -42,6 +42,19 @@ const PRICE_LEVEL_LABELS: Record<string, string> = {
   PRICE_LEVEL_VERY_EXPENSIVE: "고급 ($$$$)",
 };
 
+const PRICE_LEVEL_SHORT: Record<string, string> = {
+  PRICE_LEVEL_FREE: "무료",
+  PRICE_LEVEL_INEXPENSIVE: "$",
+  PRICE_LEVEL_MODERATE: "$$",
+  PRICE_LEVEL_EXPENSIVE: "$$$",
+  PRICE_LEVEL_VERY_EXPENSIVE: "$$$$",
+};
+
+export function formatPriceLevelShort(priceLevel: string | null | undefined): string | null {
+  if (!priceLevel) return null;
+  return PRICE_LEVEL_SHORT[priceLevel] ?? null;
+}
+
 function formatMoney(m?: Money): string | null {
   if (!m?.units) return null;
   const amount = Number(m.units);
@@ -142,18 +155,23 @@ export type NearbyRestaurant = {
   rating: number | null;
   reviewCount: number | null;
   address: string | null;
-};
-
-export type RestaurantSearchResult = NearbyRestaurant & {
   latitude: number;
   longitude: number;
+  priceLevelLabel: string | null;
+  isOpenNow: boolean | null;
 };
 
+export type RestaurantSearchResult = NearbyRestaurant;
+
 const RESTAURANT_SEARCH_FIELD_MASK =
-  "places.id,places.displayName,places.rating,places.userRatingCount,places.formattedAddress,places.location";
+  "places.id,places.displayName,places.rating,places.userRatingCount,places.formattedAddress,places.location,places.priceLevel,places.currentOpeningHours.openNow";
 
 function mapPlaceToRestaurant(
-  p: NearbyPlace & { location?: { latitude?: number; longitude?: number } }
+  p: NearbyPlace & {
+    location?: { latitude?: number; longitude?: number };
+    priceLevel?: string;
+    currentOpeningHours?: { openNow?: boolean };
+  }
 ): RestaurantSearchResult | null {
   if (p.location?.latitude == null || p.location?.longitude == null) return null;
   const name = p.displayName?.text ?? "이름 없음";
@@ -168,6 +186,8 @@ function mapPlaceToRestaurant(
     address: p.formattedAddress ?? null,
     latitude: p.location.latitude,
     longitude: p.location.longitude,
+    priceLevelLabel: formatPriceLevelShort(p.priceLevel),
+    isOpenNow: p.currentOpeningHours?.openNow ?? null,
   };
 }
 
@@ -186,6 +206,7 @@ export async function searchRestaurants(options: {
   longitude?: number;
   radiusMeters?: number;
   maxResults?: number;
+  openNow?: boolean;
 }): Promise<RestaurantSearchResult[]> {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
   if (!apiKey.startsWith("AIza")) return [];
@@ -196,6 +217,7 @@ export async function searchRestaurants(options: {
     longitude,
     radiusMeters = 5000,
     maxResults = 15,
+    openNow = false,
   } = options;
 
   const trimmed = query.trim();
@@ -206,7 +228,13 @@ export async function searchRestaurants(options: {
     Number.isFinite(longitude);
 
   if (!trimmed && hasLocation) {
-    return fetchRestaurantsInArea(latitude!, longitude!, radiusMeters, maxResults);
+    return fetchRestaurantsInArea(
+      latitude!,
+      longitude!,
+      radiusMeters,
+      maxResults,
+      openNow
+    );
   }
 
   if (!trimmed) return [];
@@ -217,6 +245,8 @@ export async function searchRestaurants(options: {
     languageCode: "ko",
     maxResultCount: maxResults,
   };
+
+  if (openNow) body.openNow = true;
 
   if (hasLocation) {
     body.locationBias = {
@@ -243,14 +273,24 @@ export async function searchRestaurants(options: {
   if (!response.ok) return [];
 
   const data = (await response.json()) as {
-    places?: (NearbyPlace & { location?: { latitude?: number; longitude?: number } })[];
+    places?: (NearbyPlace & {
+      location?: { latitude?: number; longitude?: number };
+      priceLevel?: string;
+      currentOpeningHours?: { openNow?: boolean };
+    })[];
   };
 
-  return rankRestaurants(
+  let items = rankRestaurants(
     (data.places ?? [])
       .map(mapPlaceToRestaurant)
       .filter((p): p is RestaurantSearchResult => p != null)
   );
+
+  if (openNow) {
+    items = items.filter((item) => item.isOpenNow !== false);
+  }
+
+  return items;
 }
 
 /** 좌표 주변 맛집 (검색어 없을 때 기본 목록) */
@@ -258,10 +298,25 @@ export async function fetchRestaurantsInArea(
   latitude: number,
   longitude: number,
   radiusMeters = 2000,
-  maxResults = 12
+  maxResults = 12,
+  openNow = false
 ): Promise<RestaurantSearchResult[]> {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
   if (!apiKey.startsWith("AIza")) return [];
+
+  const body: Record<string, unknown> = {
+    includedTypes: ["restaurant"],
+    maxResultCount: maxResults,
+    rankPreference: "POPULARITY",
+    locationRestriction: {
+      circle: {
+        center: { latitude, longitude },
+        radius: radiusMeters,
+      },
+    },
+  };
+
+  if (openNow) body.openNow = true;
 
   const response = await fetch(
     "https://places.googleapis.com/v1/places:searchNearby",
@@ -272,31 +327,82 @@ export async function fetchRestaurantsInArea(
         "X-Goog-Api-Key": apiKey,
         "X-Goog-FieldMask": RESTAURANT_SEARCH_FIELD_MASK,
       },
-      body: JSON.stringify({
-        includedTypes: ["restaurant"],
-        maxResultCount: maxResults,
-        rankPreference: "POPULARITY",
-        locationRestriction: {
-          circle: {
-            center: { latitude, longitude },
-            radius: radiusMeters,
-          },
-        },
-      }),
+      body: JSON.stringify(body),
     }
   );
 
   if (!response.ok) return [];
 
   const data = (await response.json()) as {
-    places?: (NearbyPlace & { location?: { latitude?: number; longitude?: number } })[];
+    places?: (NearbyPlace & {
+      location?: { latitude?: number; longitude?: number };
+      priceLevel?: string;
+      currentOpeningHours?: { openNow?: boolean };
+    })[];
   };
 
-  return rankRestaurants(
+  let items = rankRestaurants(
     (data.places ?? [])
       .map(mapPlaceToRestaurant)
       .filter((p): p is RestaurantSearchResult => p != null)
   );
+
+  if (openNow) {
+    items = items.filter((item) => item.isOpenNow !== false);
+  }
+
+  return items;
+}
+
+export function haversineMeters(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number
+): number {
+  const R = 6371000;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+export function formatDistanceLabel(meters: number): string {
+  if (meters < 1000) return `${Math.round(meters)}m`;
+  return `${(meters / 1000).toFixed(1)}km`;
+}
+
+export function formatWalkTimeLabel(meters: number): string {
+  const minutes = Math.max(1, Math.round(meters / 80));
+  return `도보 ${minutes}분`;
+}
+
+export function sortRestaurantsByDistance(
+  items: RestaurantSearchResult[],
+  latitude: number,
+  longitude: number
+): RestaurantSearchResult[] {
+  return [...items].sort(
+    (a, b) =>
+      haversineMeters(latitude, longitude, a.latitude, a.longitude) -
+      haversineMeters(latitude, longitude, b.latitude, b.longitude)
+  );
+}
+
+export function isPlaceAlreadyInItinerary(
+  googlePlaceId: string | null | undefined,
+  itineraryPlaceIds: Iterable<string | null | undefined>
+): boolean {
+  if (!googlePlaceId) return false;
+  const normalized = normalizePlaceId(googlePlaceId);
+  for (const id of itineraryPlaceIds) {
+    if (id && normalizePlaceId(id) === normalized) return true;
+  }
+  return false;
 }
 
 export function getPlacesRegionCenter(
@@ -353,23 +459,6 @@ export type TransitStopInfo = {
   longitude: number;
   placeId?: string;
 };
-
-function haversineMeters(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number
-): number {
-  const R = 6371000;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
 
 type NearbyTransitPlace = {
   id?: string;
@@ -565,8 +654,7 @@ export async function fetchNearbyRestaurants(
       headers: {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": apiKey,
-        "X-Goog-FieldMask":
-          "places.id,places.displayName,places.rating,places.userRatingCount,places.formattedAddress",
+        "X-Goog-FieldMask": RESTAURANT_SEARCH_FIELD_MASK,
       },
       body: JSON.stringify({
         includedTypes: ["restaurant"],
@@ -584,20 +672,17 @@ export async function fetchNearbyRestaurants(
 
   if (!response.ok) return [];
 
-  const data = (await response.json()) as { places?: NearbyPlace[] };
+  const data = (await response.json()) as {
+    places?: (NearbyPlace & {
+      location?: { latitude?: number; longitude?: number };
+      priceLevel?: string;
+      currentOpeningHours?: { openNow?: boolean };
+    })[];
+  };
+
   const ranked = (data.places ?? [])
-    .map((p) => {
-      const name = p.displayName?.text ?? "이름 없음";
-      return {
-        placeId: p.id ?? "",
-        name,
-        nameReadingKo: toKoreanReading(name),
-        rating: p.rating ?? null,
-        reviewCount: p.userRatingCount ?? null,
-        address: p.formattedAddress ?? null,
-      };
-    })
-    .filter((p) => p.placeId)
+    .map(mapPlaceToRestaurant)
+    .filter((p): p is RestaurantSearchResult => p != null)
     .filter((p) => p.rating != null)
     .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
 

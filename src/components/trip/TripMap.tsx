@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { AdvancedMarker, Map, useMap } from "@vis.gl/react-google-maps";
 import type { MapRouteSegment } from "@/hooks/useTripRouteLegs";
 import { groupPlacesForMarkers } from "@/lib/map-markers";
@@ -8,7 +8,8 @@ import type { RestaurantSearchResult } from "@/lib/maps/places-api";
 import { isMapsConfigured } from "./MapsProvider";
 import { MapsSetupGuide } from "./MapsSetupGuide";
 import { MapRestaurantSearch } from "./MapRestaurantSearch";
-import type { Place, PlaceInput } from "@/types/database";
+import { useRestaurantMap } from "./RestaurantMapContext";
+import type { Place } from "@/types/database";
 
 const MAP_ID =
   process.env.NEXT_PUBLIC_GOOGLE_MAP_ID?.trim() || "DEMO_MAP_ID";
@@ -19,7 +20,6 @@ type TripMapProps = {
   routeSegments: MapRouteSegment[];
   routesLoading?: boolean;
   onPlaceClick?: (placeId: string) => void;
-  onAddPlace?: (place: PlaceInput) => Promise<void>;
 };
 
 function SegmentPolylines({ segments }: { segments: MapRouteSegment[] }) {
@@ -244,10 +244,8 @@ export function TripMap({
   routeSegments,
   routesLoading,
   onPlaceClick,
-  onAddPlace,
 }: TripMapProps) {
-  const [previewRestaurant, setPreviewRestaurant] =
-    useState<RestaurantSearchResult | null>(null);
+  const { previewRestaurant } = useRestaurantMap();
 
   if (!isMapsConfigured()) {
     return (
@@ -269,14 +267,7 @@ export function TripMap({
         onPlaceClick={onPlaceClick}
         previewRestaurant={previewRestaurant}
       />
-      {onAddPlace && (
-        <MapRestaurantSearch
-          places={places}
-          onAdd={onAddPlace}
-          previewRestaurant={previewRestaurant}
-          onPreviewRestaurant={setPreviewRestaurant}
-        />
-      )}
+      <MapRestaurantSearch places={places} focusedPlaceId={focusedPlaceId} />
     </div>
   );
 }

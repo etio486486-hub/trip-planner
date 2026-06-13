@@ -21,6 +21,7 @@ import { TripMap } from "./TripMap";
 import { MemberNameModal } from "./MemberNameModal";
 import { MobileMapPanelToggle } from "./MobileMapPanelToggle";
 import { PanelResizeHandle } from "./PanelResizeHandle";
+import { RestaurantMapProvider } from "./RestaurantMapContext";
 import { TripSidebar } from "./TripSidebar";
 import type { SidebarTab } from "./TripMenuTabs";
 
@@ -233,11 +234,17 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
     onPlaceClick: (placeId: string) => {
       setFocusedPlaceId((prev) => (prev === placeId ? null : placeId));
     },
-    onAddPlace: addPlace,
   };
 
   return (
     <MapsProvider>
+      <RestaurantMapProvider
+        places={places}
+        onAddPlace={addPlace}
+        onFocusMap={
+          isMobile ? () => handleMobileFocusChange("map") : undefined
+        }
+      >
       <MemberNameModal
         open={needsNameSetup}
         onSave={joinTripAsMember}
@@ -321,6 +328,7 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
           )}
         </div>
       </div>
+      </RestaurantMapProvider>
     </MapsProvider>
   );
 }
