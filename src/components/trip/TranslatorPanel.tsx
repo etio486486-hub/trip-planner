@@ -17,12 +17,14 @@ import {
   type DeviceSpeechSupport,
 } from "@/lib/translator-device";
 import {
+  fetchKoreanReading,
   speakText,
   stopSpeaking,
   translateText,
   TRANSLATE_LANGS,
   type TranslateLang,
 } from "@/lib/translate-client";
+import { getLocalKoreanReading } from "@/lib/foreign-reading";
 
 type SpeechRecognitionCtor = new () => SpeechRecognition;
 
@@ -40,6 +42,7 @@ export function TranslatorPanel({ isMobile = false }: { isMobile?: boolean }) {
   const [targetLang, setTargetLang] = useState<TranslateLang>("ja");
   const [inputText, setInputText] = useState("");
   const [translatedText, setTranslatedText] = useState("");
+  const [readingKo, setReadingKo] = useState<string | null>(null);
   const [interimText, setInterimText] = useState("");
   const [listening, setListening] = useState(false);
   const [autoSpeak, setAutoSpeak] = useState(true);
@@ -64,9 +67,22 @@ export function TranslatorPanel({ isMobile = false }: { isMobile?: boolean }) {
 
       try {
         const result = await translateText(trimmed, sourceLang, targetLang);
-        setTranslatedText(result);
+        setTranslatedText(result.translatedText);
+
+        let reading = result.readingKo;
+        if (!reading && targetLang !== "ko") {
+          reading = getLocalKoreanReading(result.translatedText, targetLang);
+        }
+        if (!reading && targetLang !== "ko") {
+          reading = await fetchKoreanReading(
+            result.translatedText,
+            targetLang === "en" ? "en" : "ja"
+          );
+        }
+        setReadingKo(reading);
+
         if (speak && autoSpeak && device?.synthesis !== false) {
-          await speakText(result, targetLang);
+          await speakText(result.translatedText, targetLang);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "번역 실패");
@@ -188,6 +204,7 @@ export function TranslatorPanel({ isMobile = false }: { isMobile?: boolean }) {
     setTargetLang(sourceLang);
     setInputText(translatedText);
     setTranslatedText(inputText);
+    setReadingKo(null);
   };
 
   const showVoiceButton = device?.recognition;
@@ -325,6 +342,16 @@ export function TranslatorPanel({ isMobile = false }: { isMobile?: boolean }) {
             {translatedText ||
               (loading ? "번역 중…" : "번역 결과가 여기 표시됩니다")}
           </p>
+          {readingKo && targetLang !== "ko" && (
+            <p
+              className={`mt-2 font-medium text-violet-700 ${
+                isMobile ? "text-base leading-relaxed" : "text-sm"
+              }`}
+            >
+              <span className="text-violet-500">읽기 · </span>
+              {readingKo}
+            </p>
+          )}
           {translatedText && (
             <div className="mt-3 flex flex-wrap gap-2">
               <button
@@ -368,6 +395,12 @@ export function TranslatorPanel({ isMobile = false }: { isMobile?: boolean }) {
             ].map(({ ko, ja }) => {
               const phrase = targetLang === "ja" ? ja : ko;
               const src = targetLang === "ja" ? ko : ja;
+              const phraseReading =
+                targetLang === "ja"
+                  ? getLocalKoreanReading(phrase, "ja")
+                  : targetLang === "en"
+                    ? getLocalKoreanReading(phrase, "en")
+                    : null;
               return (
                 <button
                   key={ko}
@@ -382,6 +415,11 @@ export function TranslatorPanel({ isMobile = false }: { isMobile?: boolean }) {
                   <span className="mt-0.5 block text-sm font-medium text-zinc-900">
                     → {phrase}
                   </span>
+                  {phraseReading && (
+                    <span className="mt-0.5 block text-xs text-violet-600">
+                      읽기 · {phraseReading}
+                    </span>
+                  )}
                 </button>
               );
             })}

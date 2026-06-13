@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { getLocalKoreanReading } from "@/lib/foreign-reading";
+import { fetchKoreanReadingFromText } from "@/lib/translate-reading-server";
 
 type LangCode = "ko" | "ja" | "en";
 
@@ -72,7 +74,7 @@ export async function POST(request: Request) {
     }
 
     if (source === target) {
-      return NextResponse.json({ translatedText: text });
+      return NextResponse.json({ translatedText: text, readingKo: null });
     }
 
     const googleKey =
@@ -88,7 +90,15 @@ export async function POST(request: Request) {
       translated = await translateWithMyMemory(text, source, target);
     }
 
-    return NextResponse.json({ translatedText: translated });
+    let readingKo: string | null = null;
+    if (target !== "ko") {
+      readingKo = getLocalKoreanReading(translated, target);
+      if (!readingKo) {
+        readingKo = await fetchKoreanReadingFromText(translated, target);
+      }
+    }
+
+    return NextResponse.json({ translatedText: translated, readingKo });
   } catch (err) {
     const message = err instanceof Error ? err.message : "번역 실패";
     return NextResponse.json({ error: message }, { status: 500 });

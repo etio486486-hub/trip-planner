@@ -42,11 +42,16 @@ function ensureVoicesLoaded(): Promise<void> {
   });
 }
 
+export type TranslateResult = {
+  translatedText: string;
+  readingKo: string | null;
+};
+
 export async function translateText(
   text: string,
   source: TranslateLang,
   target: TranslateLang
-): Promise<string> {
+): Promise<TranslateResult> {
   const res = await fetch("/api/translate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -55,6 +60,7 @@ export async function translateText(
 
   const data = (await res.json()) as {
     translatedText?: string;
+    readingKo?: string | null;
     error?: string;
   };
 
@@ -62,7 +68,29 @@ export async function translateText(
     throw new Error(data.error ?? "번역 실패");
   }
 
-  return data.translatedText ?? "";
+  return {
+    translatedText: data.translatedText ?? "",
+    readingKo: data.readingKo ?? null,
+  };
+}
+
+export async function fetchKoreanReading(
+  text: string,
+  lang: "ja" | "en" = "ja"
+): Promise<string | null> {
+  const res = await fetch("/api/translate/reading", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, lang }),
+  });
+
+  const data = (await res.json()) as {
+    readingKo?: string | null;
+    error?: string;
+  };
+
+  if (!res.ok) return null;
+  return data.readingKo ?? null;
 }
 
 export async function speakText(
