@@ -178,7 +178,7 @@ function MapCameraController({
     places.forEach((p) =>
       bounds.extend({ lat: p.latitude, lng: p.longitude })
     );
-    map.fitBounds(bounds, { top: 80, right: 60, bottom: 60, left: 60 });
+    map.fitBounds(bounds, { top: 80, right: 88, bottom: 60, left: 60 });
   }, [map, places, focusedPlaceId, previewRestaurant]);
 
   return null;

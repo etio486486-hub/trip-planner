@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Check, Pencil, X } from "lucide-react";
 import type { Trip } from "@/types/database";
 
@@ -12,9 +12,15 @@ type TripHeaderProps = {
     end_date: string;
   }) => Promise<void>;
   compact?: boolean;
+  rightActions?: ReactNode;
 };
 
-export function TripHeader({ trip, onUpdate, compact = false }: TripHeaderProps) {
+export function TripHeader({
+  trip,
+  onUpdate,
+  compact = false,
+  rightActions,
+}: TripHeaderProps) {
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -68,7 +74,7 @@ export function TripHeader({ trip, onUpdate, compact = false }: TripHeaderProps)
         className={`border-b border-zinc-200 ${compact ? "px-3 py-2" : "px-4 py-4"}`}
       >
         <h1
-          className={`font-bold text-zinc-900 ${compact ? "text-base" : "text-lg"}`}
+          className={`text-center font-bold text-zinc-900 ${compact ? "text-base" : "text-lg"}`}
         >
           여행 계획
         </h1>
@@ -78,7 +84,7 @@ export function TripHeader({ trip, onUpdate, compact = false }: TripHeaderProps)
 
   return (
     <div
-      className={`shrink-0 border-b border-zinc-200 ${compact ? "px-3 py-2" : "px-4 py-4"}`}
+      className={`shrink-0 border-b border-zinc-200 ${compact ? "px-3 py-2" : "px-4 py-3"}`}
     >
       {editing ? (
         <div className="space-y-3">
@@ -132,25 +138,37 @@ export function TripHeader({ trip, onUpdate, compact = false }: TripHeaderProps)
           </div>
         </div>
       ) : (
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
+        <div
+          className={`relative flex items-center justify-center ${compact ? "min-h-[44px]" : "min-h-[52px]"}`}
+        >
+          <div
+            className={`absolute right-0 top-1/2 flex -translate-y-1/2 items-center gap-1 ${compact ? "right-0" : "right-0"}`}
+          >
+            {rightActions}
+            <button
+              type="button"
+              onClick={startEdit}
+              className="shrink-0 rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+              title="제목·날짜 편집"
+            >
+              <Pencil className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div
+            className={`min-w-0 max-w-full text-center ${compact ? "px-16" : "px-20"}`}
+          >
             <h1
               className={`truncate font-bold text-zinc-900 ${compact ? "text-base" : "text-lg"}`}
             >
               {trip.title}
             </h1>
-            <p className={`text-zinc-600 ${compact ? "text-[11px]" : "mt-0.5 text-xs"}`}>
+            <p
+              className={`text-zinc-600 ${compact ? "text-[11px]" : "mt-0.5 text-xs"}`}
+            >
               {trip.start_date} ~ {trip.end_date}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={startEdit}
-            className="shrink-0 rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
-            title="제목·날짜 편집"
-          >
-            <Pencil className="h-4 w-4" />
-          </button>
         </div>
       )}
     </div>

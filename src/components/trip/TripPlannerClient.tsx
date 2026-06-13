@@ -20,6 +20,7 @@ import { TripChatWidget } from "./TripChatWidget";
 import { TripMap } from "./TripMap";
 import { MemberNameModal } from "./MemberNameModal";
 import { MobileMapPanelToggle } from "./MobileMapPanelToggle";
+import { MapFeatureButtons } from "./MapFeatureButtons";
 import { PanelResizeHandle } from "./PanelResizeHandle";
 import { RestaurantMapProvider } from "./RestaurantMapContext";
 import { TripSidebar } from "./TripSidebar";
@@ -187,6 +188,16 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
     }
   };
 
+  const handleSidebarTabChange = useCallback(
+    (tab: SidebarTab) => {
+      setSidebarTab(tab);
+      if (isMobile) {
+        handleMobileFocusChange("panel");
+      }
+    },
+    [isMobile, handleMobileFocusChange]
+  );
+
   const sidebarProps = {
     tripId,
     trip,
@@ -221,7 +232,6 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
     onShowOnlySegment: handleShowOnlySegment,
     onShowAllSegments: handleShowAllSegments,
     sidebarTab,
-    onSidebarTabChange: setSidebarTab,
     checklist,
     expenses,
   };
@@ -272,6 +282,11 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
                 }}
               >
                 <TripMap {...mapProps} />
+                <MapFeatureButtons
+                  activeTab={sidebarTab}
+                  onTabChange={handleSidebarTabChange}
+                  layout="horizontal"
+                />
               </main>
               <div className="relative z-20 shrink-0">
                 <PanelResizeHandle
@@ -316,6 +331,11 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
               />
               <main className="relative min-w-0 flex-1">
                 <TripMap {...mapProps} />
+                <MapFeatureButtons
+                  activeTab={sidebarTab}
+                  onTabChange={handleSidebarTabChange}
+                  layout="vertical"
+                />
                 {currentUserId && (
                   <TripChatWidget
                     tripId={tripId}

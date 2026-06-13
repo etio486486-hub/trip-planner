@@ -11,7 +11,7 @@ type TripMenuTabsProps = {
   compact?: boolean;
 };
 
-const TABS: {
+export const SIDEBAR_TABS: {
   id: SidebarTab;
   label: string;
   icon: ComponentType<{ className?: string }>;
@@ -31,7 +31,7 @@ export function TripMenuTabs({
     <div
       className={`flex overflow-x-auto bg-zinc-50/80 px-1 ${compact ? "" : "border-b border-zinc-200 px-2"}`}
     >
-      {TABS.map(({ id, label, icon: Icon }) => (
+      {SIDEBAR_TABS.map(({ id, label, icon: Icon }) => (
         <button
           key={id}
           type="button"

@@ -11,7 +11,7 @@ import { InviteMembers } from "./InviteMembers";
 import { MemberList } from "./MemberList";
 import { PlaceList } from "./PlaceList";
 import { PlaceSearch } from "./PlaceSearch";
-import { TripMenuTabs, type SidebarTab } from "./TripMenuTabs";
+import type { SidebarTab } from "./TripMenuTabs";
 import type { useTripChecklist } from "@/hooks/useTripChecklist";
 import type { useTripExpenses } from "@/hooks/useTripExpenses";
 import type { SegmentLegState } from "@/hooks/useTripRouteLegs";
@@ -70,7 +70,6 @@ type TripSidebarProps = {
   onShowOnlySegment: (fromId: string, toId: string) => void;
   onShowAllSegments: () => void;
   sidebarTab: SidebarTab;
-  onSidebarTabChange: (tab: SidebarTab) => void;
   checklist: ReturnType<typeof useTripChecklist>;
   expenses: ReturnType<typeof useTripExpenses>;
   isMobile?: boolean;
@@ -192,7 +191,6 @@ export function TripSidebar({
   onShowOnlySegment,
   onShowAllSegments,
   sidebarTab,
-  onSidebarTabChange,
   checklist,
   expenses,
   isMobile = false,
@@ -217,10 +215,12 @@ export function TripSidebar({
   if (isMobile) {
     return (
       <aside className="flex h-full w-full min-w-0 flex-col bg-white">
-        <div className="relative shrink-0">
-          <TripHeader trip={trip} onUpdate={onUpdateTrip} compact />
-          <div className="absolute right-2 top-2">{shareMenu}</div>
-        </div>
+        <TripHeader
+          trip={trip}
+          onUpdate={onUpdateTrip}
+          compact
+          rightActions={shareMenu}
+        />
 
         <CollapsibleSection title="팀 · 초대" summary={teamSummary}>
           <InviteMembers
@@ -239,13 +239,8 @@ export function TripSidebar({
           />
         </CollapsibleSection>
 
-        <div className="sticky top-0 z-10 shrink-0 bg-white shadow-sm ring-1 ring-zinc-100">
-          <TripMenuTabs
-            activeTab={sidebarTab}
-            onTabChange={onSidebarTabChange}
-            compact
-          />
-          {sidebarTab === "itinerary" && (
+        {sidebarTab === "itinerary" && (
+          <div className="sticky top-0 z-10 shrink-0 bg-white shadow-sm ring-1 ring-zinc-100">
             <DayTabs
               dailyPlans={dailyPlans}
               selectedDayNumber={selectedDayNumber}
@@ -254,8 +249,8 @@ export function TripSidebar({
               onRemoveDay={onRemoveDay}
               compact
             />
-          )}
-        </div>
+          </div>
+        )}
 
         {sidebarTab === "itinerary" && (
           <ItineraryContent
@@ -303,22 +298,24 @@ export function TripSidebar({
 
   return (
     <aside className="flex h-full w-full min-w-0 flex-col border-zinc-200 bg-white lg:border-r">
-      <div className="relative shrink-0">
-        <TripHeader trip={trip} onUpdate={onUpdateTrip} />
-        <div className="absolute right-3 top-3">{shareMenu}</div>
-      </div>
-
-      <InviteMembers tripId={tripId} inviteCode={trip?.invite_code} />
-      <MemberList
-        members={members}
-        onlineUsers={onlineUsers}
-        currentUserId={currentUserId}
-        creatorId={creatorId}
-        onUpdateName={onUpdateDisplayName}
-        onKickMember={onKickMember}
+      <TripHeader
+        trip={trip}
+        onUpdate={onUpdateTrip}
+        rightActions={shareMenu}
       />
 
-      <TripMenuTabs activeTab={sidebarTab} onTabChange={onSidebarTabChange} />
+      <CollapsibleSection title="팀 · 초대" summary={teamSummary}>
+        <InviteMembers tripId={tripId} inviteCode={trip?.invite_code} compact />
+        <MemberList
+          members={members}
+          onlineUsers={onlineUsers}
+          currentUserId={currentUserId}
+          creatorId={creatorId}
+          onUpdateName={onUpdateDisplayName}
+          onKickMember={onKickMember}
+          compact
+        />
+      </CollapsibleSection>
 
       {sidebarTab === "itinerary" && (
         <>
