@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { Loader2, Sparkles, X } from "lucide-react";
+import { resolveAiPlaces } from "@/lib/ai-place-resolve";
 import { ProBadge } from "./ProBadge";
 import { ProUpgradePanel } from "./ProUpgradePanel";
 import { usePro } from "@/hooks/usePro";
-import type { PlaceInput } from "@/types/database";
 
 type AiPlace = { name: string; memo?: string };
 type AiDay = { dayNumber: number; title?: string; places: AiPlace[] };
@@ -16,7 +16,10 @@ type AiRecommendPanelProps = {
   existingPlaceNames: string[];
   defaultLat: number;
   defaultLng: number;
-  onAddPlaces: (places: PlaceInput[]) => Promise<void>;
+  onAddAiCourse: (
+    days: AiDay[],
+    ctx: { destination: string; defaultLat: number; defaultLng: number }
+  ) => Promise<{ added: number; skipped: string[] }>;
   compact?: boolean;
 };
 
@@ -26,7 +29,7 @@ export function AiRecommendPanel({
   existingPlaceNames,
   defaultLat,
   defaultLng,
-  onAddPlaces,
+  onAddAiCourse,
   compact = false,
 }: AiRecommendPanelProps) {
   const { hasFeature } = usePro();
@@ -36,7 +39,9 @@ export function AiRecommendPanel({
   const [preferences, setPreferences] = useState("맛집·카페·관광");
   const [loading, setLoading] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [geocoding, setGeocoding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [skipNotice, setSkipNotice] = useState<string | null>(null);
   const [result, setResult] = useState<AiDay[] | null>(null);
 
   if (!canRecommend) {
@@ -64,6 +69,7 @@ export function AiRecommendPanel({
   const runRecommend = async () => {
     setLoading(true);
     setError(null);
+    setSkipNotice(null);
     setResult(null);
 
     try {
@@ -100,29 +106,34 @@ export function AiRecommendPanel({
   const addAllPlaces = async () => {
     if (!result?.length) return;
     setAdding(true);
+    setGeocoding(true);
     setError(null);
+    setSkipNotice(null);
 
     try {
-      const inputs: PlaceInput[] = [];
-      for (const day of result) {
-        for (const place of day.places) {
-          inputs.push({
-            name: place.name,
-            latitude: defaultLat,
-            longitude: defaultLng,
-            memo: place.memo
-              ? `[AI ${day.dayNumber}일차] ${place.memo}`
-              : `[AI ${day.dayNumber}일차]`,
-          });
-        }
+      const summary = await onAddAiCourse(result, {
+        destination,
+        defaultLat,
+        defaultLng,
+      });
+
+      if (summary.skipped.length > 0) {
+        setSkipNotice(
+          `${summary.added}곳 추가 · ${summary.skipped.length}곳 위치 미확인 (${summary.skipped.slice(0, 3).join(", ")}${summary.skipped.length > 3 ? "…" : ""})`
+        );
       }
-      await onAddPlaces(inputs);
-      setOpen(false);
-      setResult(null);
+
+      if (summary.added > 0) {
+        setOpen(false);
+        setResult(null);
+      } else {
+        setError("추가할 수 있는 장소가 없습니다. Google Maps API 키를 확인해 주세요.");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "추가 실패");
     } finally {
       setAdding(false);
+      setGeocoding(false);
     }
   };
 
@@ -151,6 +162,7 @@ export function AiRecommendPanel({
                 setOpen(false);
                 setResult(null);
                 setError(null);
+                setSkipNotice(null);
               }}
               className="rounded p-1 text-violet-400 hover:bg-violet-100"
             >
@@ -211,8 +223,8 @@ export function AiRecommendPanel({
                 ))}
               </ul>
               <p className="mb-2 text-[10px] text-violet-600">
-                추가 시 현재 선택된 일차에 순서대로 넣습니다. 지도 위치는
-                장소 검색으로 보정해 주세요.
+                Google Places로 실제 위치를 찾아{" "}
+                <strong>일차별</strong>로 추가합니다.
               </p>
               <button
                 type="button"
@@ -221,7 +233,10 @@ export function AiRecommendPanel({
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 py-2.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
               >
                 {adding ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {geocoding ? "위치 확인 중…" : "추가 중…"}
+                  </>
                 ) : (
                   "일정에 추가"
                 )}
@@ -229,6 +244,9 @@ export function AiRecommendPanel({
             </>
           )}
 
+          {skipNotice && (
+            <p className="mt-2 text-[11px] text-amber-700">{skipNotice}</p>
+          )}
           {error && (
             <p className="mt-2 text-[11px] text-red-600">{error}</p>
           )}
@@ -237,3 +255,6 @@ export function AiRecommendPanel({
     </div>
   );
 }
+
+// Re-export for TripSidebar handler
+export type { AiDay };

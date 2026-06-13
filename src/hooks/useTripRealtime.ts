@@ -45,6 +45,8 @@ type UseTripRealtimeReturn = {
   error: string | null;
   selectedDailyPlan: DailyPlan | null;
   addPlace: (input: PlaceInput) => Promise<void>;
+  addPlaceToDay: (dayNumber: number, input: PlaceInput) => Promise<void>;
+  ensureDaysUpTo: (dayNumber: number) => Promise<void>;
   deletePlace: (placeId: string) => Promise<void>;
   updatePlace: (placeId: string, data: PlaceScheduleUpdate) => Promise<void>;
   reorderPlaces: (orderedIds: string[]) => Promise<void>;
@@ -547,6 +549,83 @@ export function useTripRealtime({
     [trip, members, currentUserId]
   );
 
+  const addPlaceToDay = useCallback(
+    async (dayNumber: number, input: PlaceInput) => {
+      const { data: plan, error: planError } = await getSupabase()
+        .from("daily_plans")
+        .select("id")
+        .eq("trip_id", tripId)
+        .eq("day_number", dayNumber)
+        .maybeSingle();
+
+      if (planError || !plan) {
+        throw new Error(`${dayNumber}일차 일정이 없습니다.`);
+      }
+
+      const { data: existing, error: fetchError } = await getSupabase()
+        .from("places")
+        .select("visit_order")
+        .eq("daily_plan_id", plan.id)
+        .order("visit_order", { ascending: false })
+        .limit(1);
+
+      if (fetchError) throw fetchError;
+
+      const nextOrder =
+        existing && existing.length > 0 ? existing[0].visit_order + 1 : 1;
+
+      const { error: insertError } = await getSupabase().from("places").insert({
+        daily_plan_id: plan.id,
+        name: input.name,
+        google_place_id: input.google_place_id ?? null,
+        latitude: input.latitude,
+        longitude: input.longitude,
+        visit_order: nextOrder,
+        memo: input.memo ?? null,
+      });
+
+      if (insertError) throw insertError;
+    },
+    [tripId]
+  );
+
+  const ensureDaysUpTo = useCallback(
+    async (targetDay: number) => {
+      for (;;) {
+        const { data: plans, error: listError } = await getSupabase()
+          .from("daily_plans")
+          .select("*")
+          .eq("trip_id", tripId)
+          .order("day_number", { ascending: true });
+
+        if (listError) throw listError;
+
+        const maxDay =
+          plans && plans.length > 0
+            ? Math.max(...plans.map((p) => p.day_number))
+            : 0;
+
+        if (maxDay >= targetDay) {
+          if (plans) setDailyPlans(mergeDailyPlans([], plans));
+          return;
+        }
+
+        const { data, error: insertError } = await getSupabase()
+          .from("daily_plans")
+          .insert({
+            trip_id: tripId,
+            day_number: maxDay + 1,
+          })
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+        setDailyPlans((prev) => mergeDailyPlans(prev, [data]));
+      }
+    },
+    [tripId]
+  );
+
   const addPlace = useCallback(
     async (input: PlaceInput) => {
       if (!selectedDailyPlan) return;
@@ -730,6 +809,8 @@ export function useTripRealtime({
     error,
     selectedDailyPlan,
     addPlace,
+    addPlaceToDay,
+    ensureDaysUpTo,
     deletePlace,
     updatePlace,
     reorderPlaces,

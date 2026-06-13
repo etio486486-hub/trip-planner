@@ -49,8 +49,10 @@ export async function POST(request: Request) {
 Return ONLY valid JSON with this shape:
 {"days":[{"dayNumber":1,"title":"optional theme","places":[{"name":"place name in local language or Korean","memo":"short tip in Korean"}]}]}
 Rules:
-- ${days} day(s), 3-5 places per day
+- ${days} day(s), 3-4 places per day (not too many)
+- Use official place names (Japanese + English when helpful, e.g. "福岡タワー Fukuoka Tower")
 - Real, visitable places in ${destination}
+- Spread places geographically across the city (not all same area)
 - Avoid duplicating: ${existing.join(", ") || "none"}
 - Preferences: ${preferences}
 - memos in Korean, concise`;

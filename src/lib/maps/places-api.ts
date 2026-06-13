@@ -163,6 +163,107 @@ export type NearbyRestaurant = {
 
 export type RestaurantSearchResult = NearbyRestaurant;
 
+export type PlaceTextSearchResult = {
+  placeId: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  address: string | null;
+};
+
+const PLACE_TEXT_SEARCH_FIELD_MASK =
+  "places.id,places.displayName,places.formattedAddress,places.location";
+
+/** 관광지·랜드마크 등 일반 장소 텍스트 검색 */
+export async function searchPlaceByText(options: {
+  query: string;
+  destination?: string;
+  latitude?: number;
+  longitude?: number;
+  radiusMeters?: number;
+}): Promise<PlaceTextSearchResult | null> {
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
+  if (!apiKey.startsWith("AIza")) return null;
+
+  const {
+    query,
+    destination,
+    latitude,
+    longitude,
+    radiusMeters = 15000,
+  } = options;
+
+  const trimmed = query.trim();
+  if (!trimmed) return null;
+
+  const textQuery = destination
+    ? `${trimmed} ${destination}`.trim()
+    : trimmed;
+
+  const body: Record<string, unknown> = {
+    textQuery,
+    languageCode: "ko",
+    maxResultCount: 3,
+  };
+
+  const hasLocation =
+    latitude != null &&
+    longitude != null &&
+    Number.isFinite(latitude) &&
+    Number.isFinite(longitude);
+
+  if (hasLocation) {
+    body.locationBias = {
+      circle: {
+        center: { latitude, longitude },
+        radius: radiusMeters,
+      },
+    };
+  }
+
+  const response = await fetch(
+    "https://places.googleapis.com/v1/places:searchText",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": apiKey,
+        "X-Goog-FieldMask": PLACE_TEXT_SEARCH_FIELD_MASK,
+      },
+      body: JSON.stringify(body),
+    }
+  );
+
+  if (!response.ok) return null;
+
+  const data = (await response.json()) as {
+    places?: {
+      id?: string;
+      displayName?: { text?: string };
+      formattedAddress?: string;
+      location?: { latitude?: number; longitude?: number };
+    }[];
+  };
+
+  for (const p of data.places ?? []) {
+    if (
+      p.id &&
+      p.location?.latitude != null &&
+      p.location?.longitude != null
+    ) {
+      return {
+        placeId: p.id,
+        name: p.displayName?.text ?? trimmed,
+        latitude: p.location.latitude,
+        longitude: p.location.longitude,
+        address: p.formattedAddress ?? null,
+      };
+    }
+  }
+
+  return null;
+}
+
 const RESTAURANT_SEARCH_FIELD_MASK =
   "places.id,places.displayName,places.rating,places.userRatingCount,places.formattedAddress,places.location,places.priceLevel,places.currentOpeningHours.openNow";
 

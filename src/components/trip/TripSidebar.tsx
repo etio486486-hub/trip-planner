@@ -12,7 +12,8 @@ import { InviteMembers } from "./InviteMembers";
 import { MemberList } from "./MemberList";
 import { PlaceList } from "./PlaceList";
 import { PlaceSearch } from "./PlaceSearch";
-import { AiRecommendPanel } from "@/components/pro/AiRecommendPanel";
+import { AiRecommendPanel, type AiDay } from "@/components/pro/AiRecommendPanel";
+import { resolveAiPlaces } from "@/lib/ai-place-resolve";
 import type { SidebarTab } from "./TripMenuTabs";
 import type { useTripChecklist } from "@/hooks/useTripChecklist";
 import type { useTripExpenses } from "@/hooks/useTripExpenses";
@@ -47,6 +48,8 @@ type TripSidebarProps = {
     end_date: string;
   }) => Promise<void>;
   onAddPlace: (place: PlaceInput) => Promise<void>;
+  onAddPlaceToDay: (dayNumber: number, place: PlaceInput) => Promise<void>;
+  onEnsureDaysUpTo: (dayNumber: number) => Promise<void>;
   onDeletePlace: (id: string) => void;
   onUpdatePlace: (placeId: string, data: PlaceScheduleUpdate) => Promise<void>;
   onReorderPlaces: (ids: string[]) => void;
@@ -94,6 +97,8 @@ function ItineraryContent({
   onShowOnlySegment,
   onShowAllSegments,
   onAddPlace,
+  onAddPlaceToDay,
+  onEnsureDaysUpTo,
   onUpdatePlace,
   isMobile,
 }: {
@@ -121,6 +126,8 @@ function ItineraryContent({
   onShowOnlySegment: (fromId: string, toId: string) => void;
   onShowAllSegments: () => void;
   onAddPlace: (place: PlaceInput) => Promise<void>;
+  onAddPlaceToDay: (dayNumber: number, place: PlaceInput) => Promise<void>;
+  onEnsureDaysUpTo: (dayNumber: number) => Promise<void>;
   onUpdatePlace: (placeId: string, data: PlaceScheduleUpdate) => Promise<void>;
   isMobile?: boolean;
 }) {
@@ -137,6 +144,35 @@ function ItineraryContent({
   const destinationLabel =
     trip?.title?.replace(/\s*여행!?\s*$/u, "").trim() || trip?.title || "여행지";
 
+  const handleAddAiCourse = async (
+    days: AiDay[],
+    ctx: { destination: string; defaultLat: number; defaultLng: number }
+  ) => {
+    const maxDay = Math.max(...days.map((d) => d.dayNumber), 1);
+    await onEnsureDaysUpTo(maxDay);
+
+    const items = days.flatMap((day) =>
+      day.places.map((p) => ({
+        dayNumber: day.dayNumber,
+        name: p.name,
+        memo: p.memo,
+      }))
+    );
+
+    const { resolved, skipped } = await resolveAiPlaces(
+      items,
+      ctx.destination,
+      ctx.defaultLat,
+      ctx.defaultLng
+    );
+
+    for (const { dayNumber, place } of resolved) {
+      await onAddPlaceToDay(dayNumber, place);
+    }
+
+    return { added: resolved.length, skipped };
+  };
+
   return (
     <>
       <AiRecommendPanel
@@ -145,11 +181,7 @@ function ItineraryContent({
         existingPlaceNames={places.map((p) => p.name)}
         defaultLat={mapCenter.lat}
         defaultLng={mapCenter.lng}
-        onAddPlaces={async (inputs) => {
-          for (const input of inputs) {
-            await onAddPlace(input);
-          }
-        }}
+        onAddAiCourse={handleAddAiCourse}
         compact={isMobile}
       />
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -206,6 +238,8 @@ export function TripSidebar({
   onRemoveDay,
   onUpdateTrip,
   onAddPlace,
+  onAddPlaceToDay,
+  onEnsureDaysUpTo,
   onDeletePlace,
   onUpdatePlace,
   onReorderPlaces,
@@ -302,6 +336,8 @@ export function TripSidebar({
             onShowOnlySegment={onShowOnlySegment}
             onShowAllSegments={onShowAllSegments}
             onAddPlace={onAddPlace}
+            onAddPlaceToDay={onAddPlaceToDay}
+            onEnsureDaysUpTo={onEnsureDaysUpTo}
             onUpdatePlace={onUpdatePlace}
             isMobile
           />
@@ -378,6 +414,8 @@ export function TripSidebar({
             onShowOnlySegment={onShowOnlySegment}
             onShowAllSegments={onShowAllSegments}
             onAddPlace={onAddPlace}
+            onAddPlaceToDay={onAddPlaceToDay}
+            onEnsureDaysUpTo={onEnsureDaysUpTo}
             onUpdatePlace={onUpdatePlace}
           />
         </>
