@@ -16,6 +16,7 @@ import {
   hasTripAccess,
   touchJoinedTrip,
 } from "@/lib/trip-access";
+import { storePendingTripJoin } from "@/lib/trip-pending-join";
 import { getUserId } from "@/lib/user";
 
 type TripJoinGateProps = {
@@ -76,19 +77,6 @@ export function TripJoinGate({ tripId, children }: TripJoinGateProps) {
         setLoading(false);
         return;
       }
-
-      if (urlCode && code && urlCode === normalizeInviteCode(code)) {
-        await ensureTripMembership(
-          tripId,
-          user.id,
-          getAuthDisplayName(user)
-        );
-        grantTripAccess(tripId, code);
-        touchJoinedTrip(tripId);
-        setAllowed(true);
-        setLoading(false);
-        return;
-      }
     }
 
     if (
@@ -108,6 +96,13 @@ export function TripJoinGate({ tripId, children }: TripJoinGateProps) {
     if (authLoading) return;
     verify();
   }, [verify, authLoading]);
+
+  useEffect(() => {
+    const urlCode = normalizeInviteCode(
+      new URLSearchParams(window.location.search).get("code") ?? ""
+    );
+    if (urlCode) setInputCode(urlCode);
+  }, []);
 
   const handleJoin = async () => {
     const normalized = normalizeInviteCode(inputCode);
@@ -175,15 +170,31 @@ export function TripJoinGate({ tripId, children }: TripJoinGateProps) {
           {tripTitle || "여행 참여"}
         </h1>
         <p className="mt-2 text-center text-sm text-zinc-600">
-          Google 로그인 후 참여하거나 초대 코드를 입력하세요.
+          {user
+            ? "참여 코드를 입력하고 입장하세요."
+            : "Google 로그인 후 홈에서 여행을 선택하거나, 참여 코드로 입장하세요."}
         </p>
 
         {!user && (
           <div className="mt-5">
             <GoogleSignInButton
-              onSignIn={() => signInWithGoogle(`/trips/${tripId}`)}
-              label="Google로 로그인하고 입장"
+              onSignIn={() => {
+                const urlCode = normalizeInviteCode(
+                  new URLSearchParams(window.location.search).get("code") ??
+                    ""
+                );
+                storePendingTripJoin({
+                  tripId,
+                  code: urlCode || undefined,
+                  title: tripTitle || undefined,
+                });
+                return signInWithGoogle("/");
+              }}
+              label="Google로 로그인"
             />
+            <p className="mt-2 text-center text-xs text-zinc-500">
+              로그인 후 홈에서 여행을 선택해 입장할 수 있습니다.
+            </p>
           </div>
         )}
 

@@ -25,8 +25,12 @@ import {
   isSupabaseConfigured,
 } from "@/lib/supabase/client";
 import { generateInviteCode, normalizeInviteCode } from "@/lib/invite-code";
-import { buildTripPath, grantTripAccess } from "@/lib/trip-access";
-import { consumePreferHome } from "@/lib/trip-home-nav";
+import { buildTripPath, grantTripAccess, buildTripJoinUrl } from "@/lib/trip-access";
+import {
+  clearPendingTripJoin,
+  getPendingTripJoin,
+  type PendingTripJoin,
+} from "@/lib/trip-pending-join";
 import { usePro } from "@/hooks/usePro";
 import { ProBadge } from "@/components/pro/ProBadge";
 import { ProUpgradePanel } from "@/components/pro/ProUpgradePanel";
@@ -56,6 +60,7 @@ function HomeContent() {
   const [myTrips, setMyTrips] = useState<UserTripSummary[]>([]);
   const [loadingTrips, setLoadingTrips] = useState(false);
   const [showJoinCode, setShowJoinCode] = useState(false);
+  const [pendingJoin, setPendingJoin] = useState<PendingTripJoin | null>(null);
 
   const supabaseReady = isSupabaseConfigured();
   const authError = searchParams.get("auth_error");
@@ -80,6 +85,14 @@ function HomeContent() {
   }, [authError]);
 
   useEffect(() => {
+    if (!user) {
+      setPendingJoin(null);
+      return;
+    }
+    setPendingJoin(getPendingTripJoin());
+  }, [user]);
+
+  useEffect(() => {
     if (!user || !supabaseReady) {
       setMyTrips([]);
       return;
@@ -92,9 +105,6 @@ function HomeContent() {
       .then((trips) => {
         if (cancelled) return;
         setMyTrips(trips);
-        if (trips.length === 1 && !consumePreferHome()) {
-          window.location.replace(buildTripPath(trips[0].id));
-        }
       })
       .finally(() => {
         if (!cancelled) setLoadingTrips(false);
@@ -220,8 +230,7 @@ function HomeContent() {
             )}
             <GoogleSignInButton onSignIn={() => signInWithGoogle("/")} />
             <p className="text-left text-xs leading-relaxed text-zinc-500">
-              로그인하면 내 여행이 자동으로 저장됩니다.
-              초대 링크를 받았다면 로그인 후 바로 입장할 수 있어요.
+              로그인 후 홈에서 여행을 선택해 입장할 수 있습니다.
             </p>
           </div>
         ) : (
@@ -259,12 +268,47 @@ function HomeContent() {
               </div>
             )}
 
+            {pendingJoin && (
+              <div className="mb-5 rounded-xl border-2 border-blue-300 bg-blue-50/80 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+                  초대받은 여행
+                </p>
+                <p className="mt-1 font-semibold text-zinc-900">
+                  {pendingJoin.title ||
+                    myTrips.find((t) => t.id === pendingJoin.tripId)?.title ||
+                    "여행"}
+                </p>
+                <a
+                  href={
+                    pendingJoin.code
+                      ? buildTripJoinUrl(pendingJoin.tripId, pendingJoin.code)
+                      : buildTripPath(pendingJoin.tripId)
+                  }
+                  onClick={() => clearPendingTripJoin()}
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+                >
+                  이 여행 입장하기
+                  <ChevronRight className="h-4 w-4" />
+                </a>
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearPendingTripJoin();
+                    setPendingJoin(null);
+                  }}
+                  className="mt-2 w-full text-center text-xs text-zinc-500 hover:text-zinc-700"
+                >
+                  나중에 선택
+                </button>
+              </div>
+            )}
+
             {loadingTrips ? (
               <div className="mb-5 flex items-center justify-center py-6 text-sm text-zinc-500">
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 내 여행 불러오는 중...
               </div>
-            ) : myTrips.length > 1 ? (
+            ) : myTrips.length > 0 ? (
               <div className="mb-5">
                 <h2 className="mb-2 text-sm font-semibold text-zinc-800">
                   내 여행
@@ -274,7 +318,12 @@ function HomeContent() {
                     <li key={trip.id}>
                       <a
                         href={buildTripPath(trip.id)}
-                        className="flex items-center justify-between rounded-xl border border-zinc-200 px-4 py-3 transition-colors hover:border-blue-300 hover:bg-blue-50/50"
+                        onClick={() => clearPendingTripJoin()}
+                        className={`flex items-center justify-between rounded-xl border px-4 py-3 transition-colors hover:border-blue-300 hover:bg-blue-50/50 ${
+                          pendingJoin?.tripId === trip.id
+                            ? "border-blue-300 bg-blue-50/40"
+                            : "border-zinc-200"
+                        }`}
                       >
                         <div>
                           <p className="font-medium text-zinc-900">
