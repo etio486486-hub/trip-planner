@@ -66,6 +66,15 @@ export interface Expense {
   created_at?: string;
 }
 
+export interface TripMessage {
+  id: string;
+  trip_id: string;
+  user_id: string;
+  sender_name: string;
+  content: string;
+  created_at?: string;
+}
+
 export interface Database {
   public: {
     Tables: {

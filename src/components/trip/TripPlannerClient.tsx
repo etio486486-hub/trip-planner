@@ -16,6 +16,7 @@ import type { RouteViewMode } from "@/lib/maps/segment-colors";
 import { DeviceIdentityGuard } from "./DeviceIdentityGuard";
 import { TripJoinGate } from "./TripJoinGate";
 import { MapsProvider } from "./MapsProvider";
+import { TripChatWidget } from "./TripChatWidget";
 import { TripMap } from "./TripMap";
 import { MemberNameModal } from "./MemberNameModal";
 import { MobileMapPanelToggle } from "./MobileMapPanelToggle";
@@ -94,6 +95,11 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
       ),
     [routeSegments, segmentVisibility]
   );
+
+  const chatSenderName = useMemo(() => {
+    const member = members.find((m) => m.user_id === currentUserId);
+    return member?.display_name?.trim() || "나";
+  }, [members, currentUserId]);
 
   const handleSegmentModeChange = (
     fromId: string,
@@ -258,6 +264,14 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
                 }}
               >
                 <TripMap {...mapProps} />
+                {currentUserId && (
+                  <TripChatWidget
+                    tripId={tripId}
+                    currentUserId={currentUserId}
+                    senderName={chatSenderName}
+                    isMobile
+                  />
+                )}
               </main>
               <div className="relative z-20 shrink-0">
                 <PanelResizeHandle
@@ -294,6 +308,13 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
               />
               <main className="relative min-w-0 flex-1">
                 <TripMap {...mapProps} />
+                {currentUserId && (
+                  <TripChatWidget
+                    tripId={tripId}
+                    currentUserId={currentUserId}
+                    senderName={chatSenderName}
+                  />
+                )}
               </main>
             </>
           )}
