@@ -39,7 +39,9 @@ export async function POST(request: Request) {
   const featureId = body.featureId;
   if (
     !featureId ||
-    !["ai_recommend", "conversation_mode", "live_exchange"].includes(featureId)
+    !["ai_recommend", "conversation_mode", "live_exchange", "weather_ai_reschedule"].includes(
+      featureId
+    )
   ) {
     return NextResponse.json({ error: "Invalid featureId" }, { status: 400 });
   }

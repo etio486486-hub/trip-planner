@@ -251,21 +251,20 @@ export function TripChatWidget({
     <button
       type="button"
       onClick={() => setOpenPersist(!open)}
-      className={`relative flex items-center justify-center rounded-full bg-blue-600 text-white shadow-lg shadow-blue-600/30 transition-transform hover:bg-blue-700 active:scale-95 ${
-        open && !isMobile ? "min-h-[44px] gap-2 px-4" : "h-14 w-14"
+      className={`relative flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-600/35 transition-all hover:from-blue-700 hover:via-indigo-700 hover:to-violet-700 active:scale-[0.97] ${
+        open && !isMobile
+          ? "min-h-[44px] px-4"
+          : "h-14 min-w-[8.5rem] px-4 sm:min-w-[9.5rem]"
       }`}
-      aria-label={open ? "채팅 닫기" : "멤버 채팅 열기"}
+      aria-label={open ? "멤버 채팅 닫기" : "멤버 채팅 열기"}
+      aria-expanded={open}
     >
-      {open && !isMobile ? (
-        <>
-          <MessageCircle className="h-5 w-5 shrink-0" />
-          <span className="text-sm font-medium">숨기기</span>
-        </>
-      ) : (
-        <MessageCircle className="h-6 w-6 shrink-0" />
-      )}
+      <MessageCircle className="h-5 w-5 shrink-0" strokeWidth={2.2} />
+      <span className="text-sm font-bold tracking-tight">
+        {open && !isMobile ? "숨기기" : "멤버 채팅"}
+      </span>
       {!open && unread > 0 && (
-        <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white ring-2 ring-white">
+        <span className="absolute -right-1 -top-1 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white ring-2 ring-white">
           {unread > 9 ? "9+" : unread}
         </span>
       )}
@@ -331,7 +330,7 @@ export function TripChatWidget({
         )}
 
         {!open && (
-          <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] right-4 z-[45]">
+          <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] right-3 z-[45] sm:right-4">
             {fab}
           </div>
         )}

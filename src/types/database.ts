@@ -75,6 +75,28 @@ export interface TripMessage {
   created_at?: string;
 }
 
+export type TripPollOption = {
+  id: string;
+  label: string;
+};
+
+export interface TripPoll {
+  id: string;
+  trip_id: string;
+  created_by: string;
+  title: string;
+  options: TripPollOption[] | unknown;
+  status: "open" | "closed";
+  created_at?: string;
+}
+
+export interface TripPollVote {
+  poll_id: string;
+  user_id: string;
+  option_id: string;
+  created_at?: string;
+}
+
 export interface Database {
   public: {
     Tables: {

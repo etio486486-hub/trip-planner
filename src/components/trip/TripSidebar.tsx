@@ -13,6 +13,9 @@ import { MemberList } from "./MemberList";
 import { PlaceList } from "./PlaceList";
 import { PlaceSearch } from "./PlaceSearch";
 import { AiRecommendPanel, type AiDay } from "@/components/pro/AiRecommendPanel";
+import { OfflinePackPanel } from "@/components/pro/OfflinePackPanel";
+import { VotePanel } from "@/components/pro/VotePanel";
+import { WeatherAiPanel } from "@/components/pro/WeatherAiPanel";
 import { resolveAiPlaces } from "@/lib/ai-place-resolve";
 import type { SidebarTab } from "./TripMenuTabs";
 import type { useTripChecklist } from "@/hooks/useTripChecklist";
@@ -80,9 +83,18 @@ type TripSidebarProps = {
   isMobile?: boolean;
 };
 
+function getDayDate(startDate: string, dayNumber: number): string {
+  const d = new Date(`${startDate}T12:00:00`);
+  d.setDate(d.getDate() + dayNumber - 1);
+  return d.toISOString().slice(0, 10);
+}
+
 function ItineraryContent({
   trip,
+  tripId,
   dailyPlans,
+  selectedDayNumber,
+  currentUserId,
   loading,
   places,
   selectedPlaceId,
@@ -103,7 +115,10 @@ function ItineraryContent({
   isMobile,
 }: {
   trip: Trip | null;
+  tripId: string;
   dailyPlans: DailyPlan[];
+  selectedDayNumber: number;
+  currentUserId: string;
   loading: boolean;
   places: Place[];
   selectedPlaceId: string | null;
@@ -195,6 +210,30 @@ function ItineraryContent({
         defaultLat={mapCenter.lat}
         defaultLng={mapCenter.lng}
         onAddAiCourse={handleAddAiCourse}
+        compact={isMobile}
+      />
+      <WeatherAiPanel
+        destination={destinationLabel}
+        dayNumber={selectedDayNumber}
+        dayDate={
+          trip?.start_date
+            ? getDayDate(trip.start_date, selectedDayNumber)
+            : null
+        }
+        places={places}
+        latitude={mapCenter.lat}
+        longitude={mapCenter.lng}
+        compact={isMobile}
+      />
+      <OfflinePackPanel
+        trip={trip}
+        tripId={tripId}
+        dailyPlans={dailyPlans}
+        compact={isMobile}
+      />
+      <VotePanel
+        tripId={tripId}
+        currentUserId={currentUserId}
         compact={isMobile}
       />
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -335,7 +374,10 @@ export function TripSidebar({
         {sidebarTab === "itinerary" && (
           <ItineraryContent
             trip={trip}
+            tripId={tripId}
             dailyPlans={dailyPlans}
+            selectedDayNumber={selectedDayNumber}
+            currentUserId={currentUserId}
             loading={loading}
             places={places}
             selectedPlaceId={selectedPlaceId}
@@ -414,7 +456,10 @@ export function TripSidebar({
 
           <ItineraryContent
             trip={trip}
+            tripId={tripId}
             dailyPlans={dailyPlans}
+            selectedDayNumber={selectedDayNumber}
+            currentUserId={currentUserId}
             loading={loading}
             places={places}
             selectedPlaceId={selectedPlaceId}

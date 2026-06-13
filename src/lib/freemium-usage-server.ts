@@ -162,5 +162,8 @@ export function getFreemiumLimitMessage(featureId: FreemiumFeatureId): string {
   if (featureId === "live_exchange") {
     return "오늘 무료 환율 갱신을 이미 사용했습니다. Pro는 무제한 갱신 가능합니다.";
   }
+  if (featureId === "weather_ai_reschedule") {
+    return "무료 날씨 AI 수정은 이번 달 1회까지입니다. Pro로 무제한 이용하세요.";
+  }
   return `Pro ${def.freeHint}`;
 }

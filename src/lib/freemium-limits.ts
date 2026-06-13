@@ -3,7 +3,7 @@ import type { ProFeatureId } from "./pro-features";
 /** 맛보기(횟수 제한)가 있는 Pro 기능 */
 export type FreemiumFeatureId = Extract<
   ProFeatureId,
-  "ai_recommend" | "conversation_mode" | "live_exchange"
+  "ai_recommend" | "conversation_mode" | "live_exchange" | "weather_ai_reschedule"
 >;
 
 export type FreemiumPeriod = "month" | "day" | "lifetime";
@@ -34,6 +34,12 @@ export const FREEMIUM_LIMITS: Record<FreemiumFeatureId, FreemiumLimitDef> = {
     limit: 1,
     period: "day",
     freeHint: "무료: 하루 1회 자동 갱신",
+  },
+  weather_ai_reschedule: {
+    id: "weather_ai_reschedule",
+    limit: 1,
+    period: "month",
+    freeHint: "무료: 월 1회 날씨 AI 수정",
   },
 };
 
