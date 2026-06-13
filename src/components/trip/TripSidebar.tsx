@@ -11,7 +11,6 @@ import { InviteMembers } from "./InviteMembers";
 import { MemberList } from "./MemberList";
 import { PlaceList } from "./PlaceList";
 import { PlaceSearch } from "./PlaceSearch";
-import { RestaurantSearch } from "./RestaurantSearch";
 import { TripMenuTabs, type SidebarTab } from "./TripMenuTabs";
 import type { useTripChecklist } from "@/hooks/useTripChecklist";
 import type { useTripExpenses } from "@/hooks/useTripExpenses";
@@ -129,11 +128,6 @@ function ItineraryContent({
           </div>
         ) : (
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-            <RestaurantSearch
-              places={places}
-              onAdd={onAddPlace}
-              compact={isMobile}
-            />
             <PlaceList
               places={places}
               selectedPlaceId={selectedPlaceId}

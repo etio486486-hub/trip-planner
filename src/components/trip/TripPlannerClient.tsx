@@ -233,6 +233,7 @@ function TripPlannerContent({ tripId }: TripPlannerClientProps) {
     onPlaceClick: (placeId: string) => {
       setFocusedPlaceId((prev) => (prev === placeId ? null : placeId));
     },
+    onAddPlace: addPlace,
   };
 
   return (
