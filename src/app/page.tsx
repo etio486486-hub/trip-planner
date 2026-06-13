@@ -28,7 +28,9 @@ import { generateInviteCode, normalizeInviteCode } from "@/lib/invite-code";
 import { buildTripPath, grantTripAccess } from "@/lib/trip-access";
 import { usePro } from "@/hooks/usePro";
 import { ProBadge } from "@/components/pro/ProBadge";
+import { ProUpgradePanel } from "@/components/pro/ProUpgradePanel";
 import { formatProUntil } from "@/lib/pro";
+import { FREE_TRIP_LIMIT } from "@/lib/pro-features";
 
 function formatSupabaseError(message: string): string {
   if (message.includes("Could not find the table")) {
@@ -56,7 +58,11 @@ function HomeContent() {
 
   const supabaseReady = isSupabaseConfigured();
   const authError = searchParams.get("auth_error");
-  const { isPro, profile: proProfile, preview: proPreview } = usePro();
+  const { isPro, profile: proProfile, preview: proPreview, hasFeature } = usePro();
+
+  const createdTripCount = myTrips.filter((t) => t.role === "creator").length;
+  const atTripLimit =
+    !hasFeature("unlimited_trips") && createdTripCount >= FREE_TRIP_LIMIT;
 
   useEffect(() => {
     if (authError) {
@@ -100,6 +106,13 @@ function HomeContent() {
 
   const createTrip = async () => {
     if (!supabaseReady || !user) return;
+
+    if (atTripLimit) {
+      setError(
+        `무료 계정은 여행 ${FREE_TRIP_LIMIT}개까지 만들 수 있습니다. Pro로 업그레이드하세요.`
+      );
+      return;
+    }
 
     setCreating(true);
     setError(null);
@@ -281,7 +294,7 @@ function HomeContent() {
             <button
               type="button"
               onClick={createTrip}
-              disabled={creating}
+              disabled={creating || atTripLimit}
               className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 font-medium text-white shadow-md shadow-blue-600/20 transition-colors hover:bg-blue-700 disabled:opacity-60"
             >
               {creating ? (
@@ -291,6 +304,21 @@ function HomeContent() {
               )}
               새 여행 만들기
             </button>
+
+            {atTripLimit && (
+              <div className="mb-4">
+                <p className="mb-2 text-center text-xs text-zinc-500">
+                  만든 여행 {createdTripCount}/{FREE_TRIP_LIMIT} · Pro는 무제한
+                </p>
+                <ProUpgradePanel featureId="unlimited_trips" compact />
+              </div>
+            )}
+
+            {!atTripLimit && createdTripCount > 0 && !hasFeature("unlimited_trips") && (
+              <p className="mb-4 text-center text-[11px] text-zinc-400">
+                만든 여행 {createdTripCount}/{FREE_TRIP_LIMIT}
+              </p>
+            )}
 
             <button
               type="button"

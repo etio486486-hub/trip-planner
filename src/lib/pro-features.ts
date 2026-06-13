@@ -38,28 +38,28 @@ export const PRO_FEATURES: ProFeatureDef[] = [
     name: "PDF·이미지 내보내기",
     description: "일정·가계부·체크리스트를 PDF 또는 이미지로 저장·공유.",
     tier: 1,
-    implemented: false,
+    implemented: true,
   },
   {
     id: "unlimited_trips",
     name: "무제한 여행",
     description: "무료 3개 제한 없이 여행을 원하는 만큼 생성.",
     tier: 1,
-    implemented: false,
+    implemented: true,
   },
   {
     id: "live_exchange",
     name: "실시간 환율",
     description: "가계부 환율을 API로 자동 갱신, 일별 원화 합계.",
     tier: 2,
-    implemented: false,
+    implemented: true,
   },
   {
     id: "ai_recommend",
     name: "AI 일정·맛집 추천",
     description: "여행지·취향에 맞춘 AI 코스·맛집 제안.",
     tier: 2,
-    implemented: false,
+    implemented: true,
   },
 ];
 

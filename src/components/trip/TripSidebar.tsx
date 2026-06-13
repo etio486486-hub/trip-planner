@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { Loader2 } from "lucide-react";
 import { ChecklistPanel } from "./ChecklistPanel";
 import { CollapsibleSection } from "./CollapsibleSection";
@@ -11,6 +12,7 @@ import { InviteMembers } from "./InviteMembers";
 import { MemberList } from "./MemberList";
 import { PlaceList } from "./PlaceList";
 import { PlaceSearch } from "./PlaceSearch";
+import { AiRecommendPanel } from "@/components/pro/AiRecommendPanel";
 import type { SidebarTab } from "./TripMenuTabs";
 import type { useTripChecklist } from "@/hooks/useTripChecklist";
 import type { useTripExpenses } from "@/hooks/useTripExpenses";
@@ -76,6 +78,8 @@ type TripSidebarProps = {
 };
 
 function ItineraryContent({
+  trip,
+  dailyPlans,
   loading,
   places,
   selectedPlaceId,
@@ -93,6 +97,8 @@ function ItineraryContent({
   onUpdatePlace,
   isMobile,
 }: {
+  trip: Trip | null;
+  dailyPlans: DailyPlan[];
   loading: boolean;
   places: Place[];
   selectedPlaceId: string | null;
@@ -118,8 +124,34 @@ function ItineraryContent({
   onUpdatePlace: (placeId: string, data: PlaceScheduleUpdate) => Promise<void>;
   isMobile?: boolean;
 }) {
+  const mapCenter = useMemo(() => {
+    if (places.length === 0) {
+      return { lat: 33.5904, lng: 130.4017 };
+    }
+    return {
+      lat: places.reduce((s, p) => s + p.latitude, 0) / places.length,
+      lng: places.reduce((s, p) => s + p.longitude, 0) / places.length,
+    };
+  }, [places]);
+
+  const destinationLabel =
+    trip?.title?.replace(/\s*여행!?\s*$/u, "").trim() || trip?.title || "여행지";
+
   return (
     <>
+      <AiRecommendPanel
+        destination={destinationLabel}
+        dayCount={Math.max(1, dailyPlans.length)}
+        existingPlaceNames={places.map((p) => p.name)}
+        defaultLat={mapCenter.lat}
+        defaultLng={mapCenter.lng}
+        onAddPlaces={async (inputs) => {
+          for (const input of inputs) {
+            await onAddPlace(input);
+          }
+        }}
+        compact={isMobile}
+      />
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {loading ? (
           <div className="flex flex-1 items-center justify-center">
@@ -254,6 +286,8 @@ export function TripSidebar({
 
         {sidebarTab === "itinerary" && (
           <ItineraryContent
+            trip={trip}
+            dailyPlans={dailyPlans}
             loading={loading}
             places={places}
             selectedPlaceId={selectedPlaceId}
@@ -328,6 +362,8 @@ export function TripSidebar({
           />
 
           <ItineraryContent
+            trip={trip}
+            dailyPlans={dailyPlans}
             loading={loading}
             places={places}
             selectedPlaceId={selectedPlaceId}

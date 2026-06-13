@@ -7,11 +7,15 @@ import {
   ChevronDown,
   Loader2,
   Plus,
+  RefreshCw,
   Trash2,
   User,
   Users,
   X,
 } from "lucide-react";
+import { usePro } from "@/hooks/usePro";
+import { ProBadge } from "@/components/pro/ProBadge";
+import { ProUpgradePanel } from "@/components/pro/ProUpgradePanel";
 import {
   resolveMemberName,
   type ExpenseInput,
@@ -77,6 +81,10 @@ export function ExpensePanel({
     loadExchangeRates(tripId)
   );
   const [ratesOpen, setRatesOpen] = useState(false);
+  const [liveLoading, setLiveLoading] = useState(false);
+  const [liveError, setLiveError] = useState<string | null>(null);
+  const { hasFeature } = usePro();
+  const canLiveExchange = hasFeature("live_exchange");
 
   useEffect(() => {
     setRates(loadExchangeRates(tripId));
@@ -96,6 +104,42 @@ export function ExpensePanel({
     setRates(next);
     saveExchangeRates(tripId, next);
   };
+
+  const fetchLiveRates = async () => {
+    if (!canLiveExchange) return;
+    setLiveLoading(true);
+    setLiveError(null);
+    try {
+      const res = await fetch("/api/exchange-rates");
+      const data = (await res.json()) as {
+        toBase?: TripExchangeRates["toBase"];
+        fetchedAt?: string;
+        source?: string;
+        error?: string;
+      };
+      if (!res.ok) {
+        setLiveError(data.error ?? "환율 불러오기 실패");
+        return;
+      }
+      saveRates({
+        ...rates,
+        toBase: data.toBase ?? rates.toBase,
+        fetchedAt: data.fetchedAt ?? new Date().toISOString(),
+        liveSource: data.source ?? "api",
+      });
+    } catch {
+      setLiveError("네트워크 오류");
+    } finally {
+      setLiveLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (canLiveExchange) {
+      void fetchLiveRates();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tripId, canLiveExchange]);
 
   if (needsMigration || (error && isMissingTableError({ message: error }))) {
     return <MigrationNotice feature="가계부" />;
@@ -150,13 +194,46 @@ export function ExpensePanel({
           onClick={() => setRatesOpen((v) => !v)}
           className="mt-2 flex w-full items-center justify-between rounded-md bg-white/80 px-2 py-1.5 text-[11px] text-zinc-600 ring-1 ring-zinc-200"
         >
-          <span>환율 설정 (1¥ = {rates.toBase.JPY}{rates.baseCurrency === "KRW" ? "원" : ""})</span>
+          <span>
+            환율 (1¥ = {rates.toBase.JPY}
+            {rates.baseCurrency === "KRW" ? "원" : ""})
+            {rates.fetchedAt && canLiveExchange && (
+              <span className="ml-1 text-emerald-600">· 실시간</span>
+            )}
+          </span>
           <ChevronDown
             className={`h-3.5 w-3.5 transition-transform ${ratesOpen ? "rotate-180" : ""}`}
           />
         </button>
+        {canLiveExchange && (
+          <button
+            type="button"
+            onClick={() => void fetchLiveRates()}
+            disabled={liveLoading}
+            className="mt-1.5 flex w-full items-center justify-center gap-1.5 rounded-md bg-emerald-600 px-2 py-1.5 text-[11px] font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+          >
+            {liveLoading ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <RefreshCw className="h-3 w-3" />
+            )}
+            Pro 실시간 환율 갱신
+            <ProBadge />
+          </button>
+        )}
+        {!canLiveExchange && (
+          <p className="mt-1.5 text-[10px] text-zinc-500">
+            Pro: 실시간 환율 API · 일별 원화 합계
+          </p>
+        )}
+        {liveError && (
+          <p className="mt-1 text-[10px] text-red-600">{liveError}</p>
+        )}
         {ratesOpen && (
           <div className="mt-2 space-y-2 rounded-md bg-white p-2 ring-1 ring-zinc-200">
+            {!canLiveExchange && (
+              <ProUpgradePanel featureId="live_exchange" compact />
+            )}
             <label className="block text-[10px] text-zinc-500">기준 통화</label>
             <select
               value={rates.baseCurrency}
@@ -312,11 +389,20 @@ export function ExpensePanel({
           </div>
         ) : (
           <div className="space-y-4 pb-2">
-            {expensesByDate.map(([date, list]) => (
+            {expensesByDate.map(([date, list]) => {
+              const dayTotal = totalInBase(list, rates);
+              return (
               <section key={date}>
-                <h4 className="mb-1.5 px-1 text-xs font-semibold text-zinc-500">
-                  {formatDateKo(date)}
-                </h4>
+                <div className="mb-1.5 flex items-center justify-between px-1">
+                  <h4 className="text-xs font-semibold text-zinc-500">
+                    {formatDateKo(date)}
+                  </h4>
+                  {canLiveExchange && list.length > 0 && (
+                    <span className="text-[10px] font-semibold text-emerald-700">
+                      {formatMoney(dayTotal, rates.baseCurrency)}
+                    </span>
+                  )}
+                </div>
                 <ul className="space-y-1.5">
                   {list.map((exp) => {
                     const color =
@@ -401,7 +487,8 @@ export function ExpensePanel({
                   })}
                 </ul>
               </section>
-            ))}
+            );
+            })}
           </div>
         )}
       </div>

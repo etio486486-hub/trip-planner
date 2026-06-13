@@ -6,6 +6,8 @@ export type TripExchangeRates = {
   baseCurrency: BaseCurrency;
   /** 1 단위 해당 통화 = ? 기준통화 */
   toBase: Record<ExpenseCurrency, number>;
+  fetchedAt?: string | null;
+  liveSource?: string | null;
 };
 
 const STORAGE_KEY = "trip-planner-exchange-rates";
@@ -36,6 +38,8 @@ export function loadExchangeRates(tripId: string): TripExchangeRates {
         JPY: parsed.toBase?.JPY ?? DEFAULT_RATES.toBase.JPY,
         USD: parsed.toBase?.USD ?? DEFAULT_RATES.toBase.USD,
       },
+      fetchedAt: parsed.fetchedAt ?? null,
+      liveSource: parsed.liveSource ?? null,
     };
   } catch {
     return DEFAULT_RATES;
