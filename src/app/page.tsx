@@ -2,18 +2,20 @@
 
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ChevronRight,
   KeyRound,
   Loader2,
   LogOut,
   Plus,
+  Trash2,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { HomeLayout } from "@/components/home/HomeLayout";
 import {
+  deleteUserTrip,
   getAuthDisplayName,
   joinTripWithCode,
   loadUserTrips,
@@ -50,11 +52,21 @@ function formatSupabaseError(message: string): string {
   return `오류: ${message}`;
 }
 
+function formatAuthError(raw: string): string {
+  const decoded = decodeURIComponent(raw).replace(/\+/g, " ");
+  if (decoded.toLowerCase().includes("pkce")) {
+    return "로그인 세션이 만료되었습니다. Google 로그인을 다시 시도해 주세요.";
+  }
+  return decoded;
+}
+
 function HomeContent() {
   const { user, loading: authLoading, signInWithGoogle, signOut } = useAuth();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [creating, setCreating] = useState(false);
   const [joining, setJoining] = useState(false);
+  const [deletingTripId, setDeletingTripId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [joinCode, setJoinCode] = useState("");
   const [myTrips, setMyTrips] = useState<UserTripSummary[]>([]);
@@ -71,18 +83,20 @@ function HomeContent() {
     !hasFeature("unlimited_trips") && createdTripCount >= FREE_TRIP_LIMIT;
 
   useEffect(() => {
-    if (authError) {
-      const messages: Record<string, string> = {
-        missing_code:
-          "로그인 코드가 전달되지 않았습니다. Safari/Chrome에서 다시 시도해 주세요.",
-        supabase: "Supabase 연결 설정을 확인해 주세요.",
-      };
-      setError(
-        messages[authError] ??
-          decodeURIComponent(authError).replace(/\+/g, " ")
-      );
+    if (!authError) return;
+
+    if (user) {
+      router.replace("/", { scroll: false });
+      return;
     }
-  }, [authError]);
+
+    const messages: Record<string, string> = {
+      missing_code:
+        "로그인 코드가 전달되지 않았습니다. Safari/Chrome에서 다시 시도해 주세요.",
+      supabase: "Supabase 연결 설정을 확인해 주세요.",
+    };
+    setError(messages[authError] ?? formatAuthError(authError));
+  }, [authError, user, router]);
 
   useEffect(() => {
     if (!user) {
@@ -187,6 +201,33 @@ function HomeContent() {
     }
 
     window.location.href = buildTripPath(result.tripId);
+  };
+
+  const handleDeleteTrip = async (trip: UserTripSummary) => {
+    if (!user || trip.role !== "creator") return;
+
+    const ok = window.confirm(
+      `"${trip.title}" 여행을 삭제할까요?\n일정·멤버·가계부 등 모든 데이터가 영구 삭제됩니다.`
+    );
+    if (!ok) return;
+
+    setDeletingTripId(trip.id);
+    setError(null);
+
+    const result = await deleteUserTrip(trip.id, user.id);
+
+    setDeletingTripId(null);
+
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+
+    setMyTrips((prev) => prev.filter((t) => t.id !== trip.id));
+    if (pendingJoin?.tripId === trip.id) {
+      clearPendingTripJoin();
+      setPendingJoin(null);
+    }
   };
 
   if (authLoading) {
@@ -316,25 +357,45 @@ function HomeContent() {
                 <ul className="space-y-2">
                   {myTrips.map((trip) => (
                     <li key={trip.id}>
-                      <a
-                        href={buildTripPath(trip.id)}
-                        onClick={() => clearPendingTripJoin()}
-                        className={`flex items-center justify-between rounded-xl border px-4 py-3 transition-colors hover:border-blue-300 hover:bg-blue-50/50 ${
+                      <div
+                        className={`flex items-center gap-1 rounded-xl border transition-colors hover:border-blue-300 hover:bg-blue-50/50 ${
                           pendingJoin?.tripId === trip.id
                             ? "border-blue-300 bg-blue-50/40"
                             : "border-zinc-200"
                         }`}
                       >
-                        <div>
-                          <p className="font-medium text-zinc-900">
-                            {trip.title}
-                          </p>
-                          <p className="text-[11px] text-zinc-500">
-                            {trip.role === "creator" ? "만든 여행" : "참여 중"}
-                          </p>
-                        </div>
-                        <ChevronRight className="h-4 w-4 text-blue-600" />
-                      </a>
+                        <a
+                          href={buildTripPath(trip.id)}
+                          onClick={() => clearPendingTripJoin()}
+                          className="flex min-w-0 flex-1 items-center justify-between px-4 py-3"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate font-medium text-zinc-900">
+                              {trip.title}
+                            </p>
+                            <p className="text-[11px] text-zinc-500">
+                              {trip.role === "creator" ? "만든 여행" : "참여 중"}
+                            </p>
+                          </div>
+                          <ChevronRight className="h-4 w-4 shrink-0 text-blue-600" />
+                        </a>
+                        {trip.role === "creator" && (
+                          <button
+                            type="button"
+                            onClick={() => void handleDeleteTrip(trip)}
+                            disabled={deletingTripId === trip.id}
+                            className="mr-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                            title="여행 삭제"
+                            aria-label={`${trip.title} 삭제`}
+                          >
+                            {deletingTripId === trip.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </button>
+                        )}
+                      </div>
                     </li>
                   ))}
                 </ul>

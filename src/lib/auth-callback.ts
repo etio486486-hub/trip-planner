@@ -12,9 +12,29 @@ export function storeAuthRedirect(path: string): void {
 
 export function consumeAuthRedirect(fallback = "/"): string {
   if (typeof window === "undefined") return fallback;
-  const path = sessionStorage.getItem(REDIRECT_KEY) ?? fallback;
+
+  let path = sessionStorage.getItem(REDIRECT_KEY);
+
+  if (!path) {
+    const match = document.cookie.match(/(?:^|;\s*)tp-auth-next=([^;]*)/);
+    if (match?.[1]) {
+      try {
+        path = decodeURIComponent(match[1]);
+      } catch {
+        path = match[1];
+      }
+    }
+  }
+
   sessionStorage.removeItem(REDIRECT_KEY);
-  return path;
+
+  const secure = window.location.protocol === "https:";
+  document.cookie = `${REDIRECT_COOKIE}=; path=/; max-age=0; SameSite=Lax${secure ? "; Secure" : ""}`;
+
+  if (path && path.startsWith("/") && !path.startsWith("//")) {
+    return path;
+  }
+  return fallback;
 }
 
 export function hasOAuthParams(): boolean {

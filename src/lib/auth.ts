@@ -136,6 +136,25 @@ export async function joinTripWithCode(
   return { tripId: trip.id };
 }
 
+export async function deleteUserTrip(
+  tripId: string,
+  userId: string
+): Promise<{ error?: string }> {
+  const { error, count } = await getSupabase()
+    .from("trips")
+    .delete({ count: "exact" })
+    .eq("id", tripId)
+    .eq("creator_id", userId);
+
+  if (error) {
+    return { error: error.message };
+  }
+  if (count === 0) {
+    return { error: "삭제할 수 없습니다. 방장만 삭제할 수 있습니다." };
+  }
+  return {};
+}
+
 export async function isTripMemberOrCreator(
   tripId: string,
   userId: string,
